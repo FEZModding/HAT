@@ -8,6 +8,5 @@ Please use your own copies of FEZ's binaries. This directory should contain the 
 - FEZ.exe
 - FezEngine.dll
 - FNA.dll
-- XnaWordWrapCore.dll
 - MonoMod.exe
 - MonoMod.Utils.dll
