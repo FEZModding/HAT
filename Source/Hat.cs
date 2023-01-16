@@ -72,6 +72,25 @@ namespace HatModLoader.Source
                 LogModLoadingState(mod, loadingState);
             }
 
+            // verify and remove duplicates
+            var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
+            foreach(var modName in uniqueNames)
+            {
+                var sameNamedMods = Mods.Where(mod => mod.Info.Name == modName).ToList();
+                if(sameNamedMods.Count() > 1)
+                {
+                    sameNamedMods.Sort((mod1, mod2) => mod2.CompareVersions(mod1));
+                    var newestMod = sameNamedMods.First();
+                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple instances of mod {modName} detected! Leaving only the newest version ({newestMod.Info.Version})");
+
+                    foreach(var mod in sameNamedMods)
+                    {
+                        if (mod == newestMod) continue;
+                        Mods.Remove(mod);
+                    }
+                }
+            }
+
             int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
             int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
 
@@ -93,7 +112,7 @@ namespace HatModLoader.Source
                     libraryInfo = $"library \"{mod.Info.LibraryName}\" ({componentsText})";
                 }
                 var assetsText = $"{mod.Assets.Count} asset{(mod.Assets.Count != 1 ? "s" : "")}";
-                Logger.Log("HAT", $"Loaded mod \"{mod.Info.Name}\" with {assetsText} and {libraryInfo}.");
+                Logger.Log("HAT", $"Loaded mod \"{mod.Info.Name}\" ver. {mod.Info.Version} by {mod.Info.Author} ({assetsText} and {libraryInfo})");
             }
             else
             {
@@ -113,7 +132,16 @@ namespace HatModLoader.Source
                 }
             }
         }
-        
+
+        public void InitalizeAssemblies()
+        {
+            foreach (var mod in Mods)
+            {
+                mod.InitializeAssembly();
+            }
+            Logger.Log("HAT", "Assembly initialization completed!");
+        }
+
         public void InitializeAssets()
         {
             foreach (var mod in Mods)

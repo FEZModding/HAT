@@ -6,13 +6,13 @@ namespace FezGame
 {
     public class patch_Fez : Fez
     {
-
         public static Hat HatML;
 
         protected extern void orig_Initialize();
         protected override void Initialize()
         {
             HatML = new Hat(this);
+            HatML.InitalizeAssemblies();
             orig_Initialize();
             HatML.InitializeAssets();
             HatML.InitalizeComponents();

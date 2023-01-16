@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -29,6 +30,7 @@ namespace HatModLoader.Source
             public string LibraryName;
         }
 
+        public byte[] RawAssembly { get; private set; }
         public Assembly Assembly { get; private set; }
         public Metadata Info { get; private set; }
         public string DirectoryName { get; private set; }
@@ -37,10 +39,11 @@ namespace HatModLoader.Source
         public List<IGameComponent> Components { get; private set; }
 
         public bool IsAssetMod => Assets.Count > 0;
-        public bool IsCodeMod => Assembly != null;
+        public bool IsCodeMod => RawAssembly != null;
 
         public Mod()
         {
+            RawAssembly = null;
             Assembly = null;
             Assets = new Dictionary<string, byte[]>();
             Components = new List<IGameComponent>();
@@ -60,10 +63,23 @@ namespace HatModLoader.Source
         public void InitializeComponents()
         {
             // add game components
-            foreach(var component in Components)
+            foreach (var component in Components)
             {
                 ServiceHelper.AddComponent(component);
                 component.Initialize();
+            }
+        }
+
+        public void InitializeAssembly()
+        {
+            if (RawAssembly == null) return;
+            Assembly = Assembly.Load(RawAssembly);
+
+            foreach (Type type in Assembly.GetExportedTypes())
+            {
+                if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic) continue;
+                var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { Hat.Instance.Game });
+                Components.Add(gameComponent);
             }
         }
 
@@ -84,6 +100,8 @@ namespace HatModLoader.Source
             {
                 var serializer = new XmlSerializer(typeof(Metadata));
                 Info = (Metadata)serializer.Deserialize(reader);
+                if (Info.Name == null || Info.Name.Length == 0) return false;
+                if (Info.Version == null || Info.Version.Length == 0) return false; 
                 return true;
             }
             catch (Exception)
@@ -92,17 +110,29 @@ namespace HatModLoader.Source
             }
         }
 
-        private void SetAssembly(Assembly assembly)
+        // compare versions of two mods
+        // returns positive number if passed mod is older, negative if passed mod is newer
+        public int CompareVersions(Mod mod)
         {
-            if (Assembly != null) return;
-            Assembly = assembly;
+            string tokensPattern = @"(\d+|\D+)";
+            string[] TokensOwn = Regex.Split(Info.Version, tokensPattern);
+            string[] TokensMod = Regex.Split(mod.Info.Version, tokensPattern);
 
-            foreach (Type type in Assembly.GetExportedTypes())
+            for(int i=0; i < Math.Min(TokensOwn.Length, TokensMod.Length); i++)
             {
-                if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic) continue;
-                var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { Hat.Instance.Game });
-                Components.Add(gameComponent);
+                if(int.TryParse(TokensOwn[i], out int tokenIntOwn) && int.TryParse(TokensMod[i], out int tokenIntMod))
+                {
+                    if (tokenIntOwn > tokenIntMod) return 1;
+                    if (tokenIntOwn < tokenIntMod) return -1;
+                    continue;
+                }
+                int comparison = TokensOwn[i].CompareTo(TokensMod[i]);
+                if (comparison < 0) return 1;
+                if (comparison > 0) return -1;
             }
+            if (TokensOwn.Length > TokensMod.Length) return 1;
+            if (TokensOwn.Length < TokensMod.Length) return -1;
+            return 0;
         }
 
         // attempts to load a valid mod directory within Mods directory
@@ -128,8 +158,6 @@ namespace HatModLoader.Source
                 }
             }
 
-            if (mod.Info.Name == null) return false;
-
             foreach (var path in Directory.EnumerateDirectories(modDir))
             {
                 var relativeDirName = new DirectoryInfo(path).Name;
@@ -147,7 +175,7 @@ namespace HatModLoader.Source
 
                 if (File.Exists(libraryPath))
                 {
-                    mod.SetAssembly(Assembly.LoadFile(libraryPath));
+                    mod.RawAssembly = File.ReadAllBytes(libraryPath);
                 }
             }
 
@@ -180,8 +208,6 @@ namespace HatModLoader.Source
                     }
                 }
 
-                if (mod.Info.Name == null) return false;
-
                 foreach (var zipEntry in archive.Entries)
                 {
                     if (zipEntry.FullName.StartsWith(AssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
@@ -199,9 +225,8 @@ namespace HatModLoader.Source
                     if (dllMatches.Count() > 0)
                     {
                         var zipFile = dllMatches.First().Open();
-                        byte[] bytes = new byte[zipFile.Length];
-                        zipFile.Read(bytes, 0, bytes.Length);
-                        mod.SetAssembly(Assembly.Load(bytes));
+                        mod.RawAssembly = new byte[zipFile.Length];
+                        zipFile.Read(mod.RawAssembly, 0, mod.RawAssembly.Length);
                     }
                 }
             }
