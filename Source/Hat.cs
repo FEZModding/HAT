@@ -2,6 +2,7 @@
 using FezGame;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace HatModLoader.Source
@@ -41,6 +42,14 @@ namespace HatModLoader.Source
         {
             Mods = new List<Mod>();
 
+            // check if directory is there
+            if (!Directory.Exists(Mod.GetModsDirectory()))
+            {
+                Logger.Log("HAT", LogSeverity.Warning, "Main mods directory not found. Creating and skipping mod loading process...");
+                Directory.CreateDirectory(Mod.GetModsDirectory());
+                return;
+            }
+
             // load mods in directories
             foreach(var modDir in Mod.GetModDirectories())
             {
@@ -66,7 +75,11 @@ namespace HatModLoader.Source
             int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
             int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
 
-            Logger.Log("HAT", $"Successfully loaded {Mods.Count} mods ({codeModsCount} code mods and {assetModsCount} asset mods)");
+            var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
+            var codeModsText = $"{codeModsCount} code mod{(codeModsCount != 1 ? "s" : "")}";
+            var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
+
+            Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
         }
 
         private void LogModLoadingState(Mod mod, bool loadState)
@@ -76,9 +89,11 @@ namespace HatModLoader.Source
                 var libraryInfo = "no library";
                 if (mod.IsCodeMod)
                 {
-                    libraryInfo = $"library \"{mod.Info.LibraryName}\" ({mod.Components.Count} components)";
+                    var componentsText = $"{mod.Components.Count} component{(mod.Components.Count != 1 ? "s" : "")}";
+                    libraryInfo = $"library \"{mod.Info.LibraryName}\" ({componentsText})";
                 }
-                Logger.Log("HAT", $"Loaded mod \"{mod.Info.Name}\" with {mod.Assets.Count} assets and {libraryInfo}.");
+                var assetsText = $"{mod.Assets.Count} asset{(mod.Assets.Count != 1 ? "s" : "")}";
+                Logger.Log("HAT", $"Loaded mod \"{mod.Info.Name}\" with {assetsText} and {libraryInfo}.");
             }
             else
             {
@@ -99,13 +114,22 @@ namespace HatModLoader.Source
             }
         }
         
-        public void Initalize()
+        public void InitializeAssets()
+        {
+            foreach (var mod in Mods)
+            {
+                mod.InitializeAssets();
+            }
+            Logger.Log("HAT", "Asset injection completed!");
+        }
+
+        public void InitalizeComponents()
         {
             foreach(var mod in Mods)
             {
-                mod.Initialize();
+                mod.InitializeComponents();
             }
-            Logger.Log("HAT", "Mods initialization completed!");
+            Logger.Log("HAT", "Component initialization completed!");
         }
 
     }

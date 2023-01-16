@@ -14,7 +14,8 @@ namespace FezGame
         {
             HatML = new Hat(this);
             orig_Initialize();
-            HatML.Initalize();
+            HatML.InitializeAssets();
+            HatML.InitalizeComponents();
         }
 
     }

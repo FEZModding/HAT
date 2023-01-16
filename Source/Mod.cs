@@ -46,15 +46,19 @@ namespace HatModLoader.Source
             Components = new List<IGameComponent>();
         }
 
-        // injects custom components and assets of this mod into the game
-        public void Initialize()
+        // inject custom assets of this mod into the game
+        public void InitializeAssets()
         {
             // override custom assets
-            foreach(var asset in Assets)
+            foreach (var asset in Assets)
             {
                 AssetsHelper.InjectAsset(asset.Key, asset.Value);
             }
+        }
 
+        // injects custom components of this mod into the game
+        public void InitializeComponents()
+        {
             // add game components
             foreach(var component in Components)
             {
@@ -107,7 +111,7 @@ namespace HatModLoader.Source
             mod = new Mod();
             mod.DirectoryName = directoryName;
 
-            var modDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModsDirectoryName, directoryName);
+            var modDir = Path.Combine(GetModsDirectory(), directoryName);
             if (!Directory.Exists(modDir)) return false;
 
             foreach (var path in Directory.EnumerateFiles(modDir))
@@ -159,7 +163,7 @@ namespace HatModLoader.Source
                 IsZip = true
             };
 
-            var zipPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModsDirectoryName, zipName);
+            var zipPath = Path.Combine(GetModsDirectory(), zipName);
             if (!File.Exists(zipPath)) return false;
 
             using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Update))
@@ -205,10 +209,15 @@ namespace HatModLoader.Source
             return mod.IsAssetMod || mod.IsCodeMod;
         }
 
+        public static string GetModsDirectory()
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModsDirectoryName);
+        }
+
         // returns list of directory names in mod directory
         public static List<string> GetModDirectories()
         {
-            if (!Directory.Exists(ModsDirectoryName)) return new List<string>();
+            if (!Directory.Exists(GetModsDirectory())) return new List<string>();
             return Directory.GetDirectories(ModsDirectoryName)
                 .Select(path => new DirectoryInfo(path).Name)
                 .ToList();
@@ -216,7 +225,7 @@ namespace HatModLoader.Source
 
         public static List<string> GetModArchives()
         {
-            if (!Directory.Exists(ModsDirectoryName)) return new List<string>();
+            if (!Directory.Exists(GetModsDirectory())) return new List<string>();
             return Directory.GetFiles(ModsDirectoryName)
                 .Where(file => Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase))
                 .Select(file => Path.GetFileName(file))

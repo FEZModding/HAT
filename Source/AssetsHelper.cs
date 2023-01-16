@@ -26,10 +26,13 @@ namespace HatModLoader.Source
                 var extension = Path.GetExtension(path).ToLower();
                 var relativePath = new Uri(directoryPath).MakeRelativeUri(new Uri(path)).OriginalString
                     .Replace("/", "\\").ToLower();
+                relativePath = relativePath.Substring(0, relativePath.Length - extension.Length);
 
-                byte[] bytes = File.ReadAllBytes(path);
-
-                assets.Add(relativePath, ConvertFile(bytes, extension));
+                if (extension.Length > 0)
+                {
+                    byte[] bytes = File.ReadAllBytes(path);
+                    assets.Add(relativePath, ConvertFile(bytes, extension));
+                }
             }
 
             return assets;
@@ -41,15 +44,19 @@ namespace HatModLoader.Source
 
             foreach (var zipEntry in archive.Entries.Where(e => e.FullName.StartsWith(assetsDirectory, StringComparison.OrdinalIgnoreCase)))
             {
+                var extension = Path.GetExtension(zipEntry.Name).ToLower();
                 var relativePath = zipEntry.FullName.Substring(assetsDirectory.Length + 1)
                     .Replace("/", "\\").ToLower();
-                var extension = Path.GetExtension(zipEntry.Name).ToLower();
+                relativePath = relativePath.Substring(0, relativePath.Length - extension.Length);
 
-                var zipFile = zipEntry.Open();
-                byte[] bytes = new byte[zipFile.Length];
-                zipFile.Read(bytes, 0, bytes.Length);
+                if (extension.Length > 0)
+                {
+                    var zipFile = zipEntry.Open();
+                    byte[] bytes = new byte[zipFile.Length];
+                    zipFile.Read(bytes, 0, bytes.Length);
 
-                assets.Add(relativePath, ConvertFile(bytes, extension));
+                    assets.Add(relativePath, ConvertFile(bytes, extension));
+                }
             }
 
             return assets;
