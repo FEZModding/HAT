@@ -61,6 +61,9 @@
       <HintPath>Dependencies\MonoMod.exe</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="MonoMod.RuntimeDetour">
+      <HintPath>Dependencies\MonoMod.RuntimeDetour.dll</HintPath>
+    </Reference>
     <Reference Include="MonoMod.Utils">
       <HintPath>Dependencies\MonoMod.Utils.dll</HintPath>
       <Private>False</Private>
@@ -83,6 +86,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Source\LoggerModifier.cs" />
     <Compile Include="Patches\Fez.cs" />
     <Compile Include="Patches\FezLogo.cs" />
     <Compile Include="Properties\MonoModRules.cs" />
