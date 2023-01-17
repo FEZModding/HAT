@@ -2,6 +2,8 @@
 using FezEngine.Structure;
 using FezEngine.Structure.Geometry;
 using FezEngine.Tools;
+using HatModLoader.Helpers;
+using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -132,6 +134,25 @@ namespace FezGame.Components
 
             LogoMeshField.SetValue(this, LogoMesh);
             WireMeshField.SetValue(this, WireMesh);
+        }
+
+        public extern void orig_Draw(GameTime gameTime);
+        public override void Draw(GameTime gameTime)
+        {
+            orig_Draw(gameTime);
+
+            if (Hat.Instance == null) return;
+
+            float alpha = Math.Max(0, Math.Min(Starfield.Opacity, 1.0f - SinceStarted));
+            if (alpha == 0.0f) return;
+
+            Viewport viewport = DrawingTools.GetViewport();
+            string hatText = $"HAT Mod Loader, version {Hat.Version}, {Hat.Instance.Mods.Count} mods installed";
+            Color textColor = Color.Lerp(Color.White, Color.Black, alpha);
+
+            DrawingTools.BeginBatch();
+            DrawingTools.DrawText(hatText, new Vector2(30, viewport.Height - 80), textColor);
+            DrawingTools.EndBatch();
         }
     }
 }
