@@ -15,8 +15,6 @@ namespace FezGame
 
         static patch_Fez()
         {
-            DrawingTools.Init();
-
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
             {
@@ -31,6 +29,7 @@ namespace FezGame
             HatML = new Hat(this);
             HatML.InitalizeAssemblies();
             orig_Initialize();
+            DrawingTools.Init();
             HatML.InitializeAssets();
             HatML.InitalizeComponents();
         }
