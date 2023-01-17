@@ -1,7 +1,10 @@
-﻿using HatModLoader.Source;
+﻿using HatModLoader.Installers;
+using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using MonoMod;
 using System;
+using System.Linq;
+using System.Reflection;
 
 namespace FezGame
 {
@@ -11,7 +14,12 @@ namespace FezGame
 
         static patch_Fez()
         {
-            LoggerModifier.Initialize();
+            foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
+            .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
+            {
+                IHatInstaller installer = (IHatInstaller)Activator.CreateInstance(type);
+                installer.Install();
+            }
         }
 
         protected extern void orig_Initialize();

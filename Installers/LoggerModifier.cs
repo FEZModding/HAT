@@ -2,23 +2,18 @@
 using Microsoft.Xna.Framework;
 using MonoMod.RuntimeDetour;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Installers
 {
-    internal static class LoggerModifier
+    internal class LoggerModifier : IHatInstaller
     {
         private static readonly string LogDirectory = "Debug Logs";
 
         public static IDetour LogDetour;
 
-        public static void Initialize()
+        public void Install()
         {
             LogDetour = new Hook(
                 typeof(Logger).GetMethod("Log", new Type[] { typeof(string), typeof(LogSeverity), typeof(string) }),

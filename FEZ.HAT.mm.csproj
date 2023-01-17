@@ -86,7 +86,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Source\LoggerModifier.cs" />
+    <Compile Include="Installers\IHatInstaller.cs" />
+    <Compile Include="Installers\LoggerModifier.cs" />
     <Compile Include="Patches\Fez.cs" />
     <Compile Include="Patches\FezLogo.cs" />
     <Compile Include="Properties\MonoModRules.cs" />
