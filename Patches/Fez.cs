@@ -1,4 +1,5 @@
-﻿using HatModLoader.Installers;
+﻿using HatModLoader.Helpers;
+using HatModLoader.Installers;
 using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using MonoMod;
@@ -14,6 +15,8 @@ namespace FezGame
 
         static patch_Fez()
         {
+            DrawingTools.Init();
+
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
             {
@@ -32,5 +35,11 @@ namespace FezGame
             HatML.InitalizeComponents();
         }
 
+        protected extern void orig_Update(GameTime gameTime);
+        protected override void Update(GameTime gameTime)
+        {
+            InputHelper.Update(gameTime);
+            orig_Update(gameTime);
+        }
     }
 }
