@@ -48,5 +48,10 @@ namespace HatModLoader.Installers
             var ShowRuntimeErrorFunc = FNAPlatformType.GetMethod("ShowRuntimeError", BindingFlags.Public | BindingFlags.Static);
             ShowRuntimeErrorFunc.Invoke(null, new object[] { $"FEZ [{component}]", message });
         }
+
+        public void Uninstall()
+        {
+            LogDetour.Dispose();
+        }
     }
 }

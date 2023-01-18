@@ -90,8 +90,10 @@
     <Compile Include="Helpers\InputHelper.cs" />
     <Compile Include="Installers\IHatInstaller.cs" />
     <Compile Include="Installers\LoggerModifier.cs" />
+    <Compile Include="Installers\ModMenuInstaller.cs" />
     <Compile Include="Patches\Fez.cs" />
     <Compile Include="Patches\FezLogo.cs" />
+    <Compile Include="Patches\StaticText.cs" />
     <Compile Include="Properties\MonoModRules.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Source\AssetsHelper.cs" />
