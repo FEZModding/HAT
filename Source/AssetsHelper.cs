@@ -24,8 +24,8 @@ namespace HatModLoader.Source
             foreach (var path in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
             {
                 var extension = Path.GetExtension(path).ToLower();
-                var relativePath = new Uri(directoryPath).MakeRelativeUri(new Uri(path)).OriginalString
-                    .Replace("/", "\\").ToLower();
+                // might yield incorrect result if path doesn't start with directory path!!
+                var relativePath = path.Substring(directoryPath.Length+1).Replace("/", "\\").ToLower(); 
                 relativePath = relativePath.Substring(0, relativePath.Length - extension.Length);
 
                 if (extension.Length > 0)
