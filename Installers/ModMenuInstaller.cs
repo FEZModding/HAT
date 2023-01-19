@@ -1,4 +1,5 @@
 ﻿using FezGame;
+using HatModLoader.Source;
 using MonoMod.RuntimeDetour;
 using System;
 using System.Collections;
@@ -14,14 +15,18 @@ namespace HatModLoader.Installers
     {
 
         private static Type MenuLevelType;
+        private static Type MenuItemType;
         private static Type MenuBaseType;
         private static Type MainMenuType;
+
+        private static int modMenuCurrentIndex;
 
         private static IDetour MenuInitHook;
 
         public void Install()
         {
             MenuLevelType = Assembly.GetAssembly(typeof(Fez)).GetType("FezGame.Structure.MenuLevel");
+            MenuItemType = Assembly.GetAssembly(typeof(Fez)).GetType("FezGame.Structure.MenuItem");
             MenuBaseType = Assembly.GetAssembly(typeof(Fez)).GetType("FezGame.Components.MenuBase");
             MainMenuType = Assembly.GetAssembly(typeof(Fez)).GetType("FezGame.Components.MainMenu");
 
@@ -55,6 +60,42 @@ namespace HatModLoader.Installers
             MenuLevelType.GetField("IsDynamic").SetValue(ModLevel, true);
             MenuLevelType.GetProperty("Title").SetValue(ModLevel, "@MODS");
             MenuLevelType.GetField("Parent").SetValue(ModLevel, MenuRoot);
+            MenuLevelType.GetField("Oversized").SetValue(ModLevel, true);
+
+
+
+            var MenuLevelAddItemGeneric = MenuLevelType.GetMethods().FirstOrDefault(mi => mi.Name == "AddItem" && mi.GetParameters().Length == 5);
+            var MenuLevelAddItemInt = MenuLevelAddItemGeneric.MakeGenericMethod(new Type[] { typeof(int) });
+
+            var menuIteratorItem = MenuLevelAddItemInt.Invoke(ModLevel, new object[] { 
+                null, (Action)delegate { }, false, 
+                (Func<int>) delegate{ return modMenuCurrentIndex; },
+                (Action<int, int>) delegate(int value, int change) {
+                    modMenuCurrentIndex += change;
+                    if (modMenuCurrentIndex < 0) modMenuCurrentIndex = Hat.Instance.Mods.Count-1;
+                    if (modMenuCurrentIndex >= Hat.Instance.Mods.Count) modMenuCurrentIndex = 0;
+                }
+            });
+            MenuItemType.GetProperty("SuffixText").SetValue(menuIteratorItem, (Func<string>)delegate
+            {
+                return $"{modMenuCurrentIndex + 1} / {Hat.Instance.Mods.Count}";
+            });
+
+            Action<string, Func<string>> AddInactiveStringItem = delegate (string name, Func<string> suffix)
+            {
+                var item = MenuLevelType.GetMethod("AddItem", new Type[] { typeof(string) })
+                    .Invoke(ModLevel, new object[] {name});
+                MenuItemType.GetProperty("Selectable").SetValue(item, false);
+                if(suffix != null)
+                {
+                    MenuItemType.GetProperty("SuffixText").SetValue(item, suffix);
+                }
+            };
+
+            AddInactiveStringItem(null, null);
+            AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name);
+            AddInactiveStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}");
+            AddInactiveStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}");
 
             // add created menu level to the main menu
             int modsIndex = ((IList)MenuLevelType.GetField("Items").GetValue(MenuRoot)).Count - 2;
