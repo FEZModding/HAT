@@ -171,7 +171,7 @@ namespace HatModLoader.Source
                         switch (dependency.Status)
                         {
                             case DependencyStatus.InvalidVersion:
-                                issue = $"needs version >{dependency.Info.MinimumVersion}, found {dependency.DetectedVersion}";
+                                issue = $"needs version >={dependency.Info.MinimumVersion}, found {dependency.DetectedVersion}";
                                 break;
                             case DependencyStatus.InvalidNotFound:
                                 issue = $"not found";
