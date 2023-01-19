@@ -32,9 +32,11 @@ It's that simple!
 3. Build it. idk. it should work.
 
 ## "Documentation"
+
 - [Create your own HAT modifications](/Docs/createmods.md)
 - [Additional HAT behaviour](/Docs/additional.md)
 
 ## Mods created for HAT
-- [FEZUG](https://github.com/Krzyhau/FEZUG) - a power tool for speedrun practicing and messing with the game (NOT PORTED YET)
-- [FezSonezSkin](https://github.com/Krzyhau/FezSonezSkin) - mod replacing Gomez skin with Sonic-like guy seen in Speedrun Mode thumbnail (NOT PORTED YET)
+
+- [FEZUG](https://github.com/Krzyhau/FEZUG) - a power tool for speedrun practicing and messing with the game
+- [FezSonezSkin](https://github.com/Krzyhau/FezSonezSkin) - mod replacing Gomez skin with Sonic-like guy seen in Speedrun Mode thumbnail
