@@ -21,6 +21,13 @@ namespace HatModLoader.Source
         public static readonly string ModMetadataFileName = "Metadata.xml";
 
         [Serializable]
+        public struct DependencyInfo
+        {
+            [XmlAttribute] public string Name;
+            [XmlAttribute] public string MinimumVersion;
+        }
+
+        [Serializable]
         public struct Metadata
         {
             public string Name;
@@ -28,12 +35,33 @@ namespace HatModLoader.Source
             public string Author;
             public string Version;
             public string LibraryName;
+            public DependencyInfo[] Dependencies;
         }
+
+        public enum DependencyStatus
+        {
+            Valid,
+            InvalidVersion,
+            InvalidNotFound,
+            InvalidRecursive
+        }
+
+        public struct Dependency
+        {
+            public DependencyInfo Info;
+            public Mod Instance;
+            public DependencyStatus Status;
+            public bool IsModLoaderDependency => Info.Name == "HAT";
+            public string DetectedVersion => IsModLoaderDependency ? Hat.Version : (Instance != null ? Instance.Info.Version : null);
+        }
+
+        public Hat ModLoader;
 
         public byte[] RawAssembly { get; private set; }
         public Assembly Assembly { get; private set; }
         public Metadata Info { get; private set; }
         public string DirectoryName { get; private set; }
+        public List<Dependency> Dependencies { get; private set; }
         public bool IsZip { get; private set; }
         public Dictionary<string, byte[]> Assets { get; private set; }
         public List<IGameComponent> Components { get; private set; }
@@ -41,12 +69,15 @@ namespace HatModLoader.Source
         public bool IsAssetMod => Assets.Count > 0;
         public bool IsCodeMod => RawAssembly != null;
 
-        public Mod()
+        public Mod(Hat modLoader)
         {
+            ModLoader = modLoader;
+
             RawAssembly = null;
             Assembly = null;
             Assets = new Dictionary<string, byte[]>();
             Components = new List<IGameComponent>();
+            Dependencies = new List<Dependency>();
         }
 
         // inject custom assets of this mod into the game
@@ -78,7 +109,7 @@ namespace HatModLoader.Source
             foreach (Type type in Assembly.GetExportedTypes())
             {
                 if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic) continue;
-                var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { Hat.Instance.Game });
+                var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { ModLoader.Game });
                 Components.Add(gameComponent);
             }
         }
@@ -110,35 +141,103 @@ namespace HatModLoader.Source
             }
         }
 
-        // compare versions of two mods
-        // returns positive number if passed mod is older, negative if passed mod is newer
-        public int CompareVersions(Mod mod)
+        // compare two version strings
+        // returns positive number if first version is newer, negative if first version is older
+        public static int CompareVersions(string ver1, string ver2)
         {
             string tokensPattern = @"(\d+|\D+)";
-            string[] TokensOwn = Regex.Split(Info.Version, tokensPattern);
-            string[] TokensMod = Regex.Split(mod.Info.Version, tokensPattern);
+            string[] TokensVer1 = Regex.Split(ver1, tokensPattern);
+            string[] TokensVer2 = Regex.Split(ver2, tokensPattern);
 
-            for(int i=0; i < Math.Min(TokensOwn.Length, TokensMod.Length); i++)
+            for(int i=0; i < Math.Min(TokensVer1.Length, TokensVer2.Length); i++)
             {
-                if(int.TryParse(TokensOwn[i], out int tokenIntOwn) && int.TryParse(TokensMod[i], out int tokenIntMod))
+                if(int.TryParse(TokensVer1[i], out int tokenInt1) && int.TryParse(TokensVer2[i], out int tokenInt2))
                 {
-                    if (tokenIntOwn > tokenIntMod) return 1;
-                    if (tokenIntOwn < tokenIntMod) return -1;
+                    if (tokenInt1 > tokenInt2) return 1;
+                    if (tokenInt1 < tokenInt2) return -1;
                     continue;
                 }
-                int comparison = TokensOwn[i].CompareTo(TokensMod[i]);
+                int comparison = TokensVer1[i].CompareTo(TokensVer2[i]);
                 if (comparison < 0) return 1;
                 if (comparison > 0) return -1;
             }
-            if (TokensOwn.Length > TokensMod.Length) return 1;
-            if (TokensOwn.Length < TokensMod.Length) return -1;
+            if (TokensVer1.Length > TokensVer2.Length) return 1;
+            if (TokensVer1.Length < TokensVer2.Length) return -1;
             return 0;
         }
 
-        // attempts to load a valid mod directory within Mods directory
-        public static bool TryLoadFromDirectory(string directoryName, out Mod mod)
+        public int CompareVersionsWith(Mod mod)
         {
-            mod = new Mod();
+            return CompareVersions(Info.Version, mod.Info.Version);
+        }
+
+        public void InitializeDependencies()
+        {
+            if (Info.Dependencies == null || Info.Dependencies.Count() == 0) return;
+            if (Dependencies.Count() == Info.Dependencies.Length) return;
+
+            Dependencies.Clear();
+            foreach (var dependencyInfo in Info.Dependencies)
+            {
+                var matchingMod = ModLoader.Mods.FirstOrDefault(mod => mod.Info.Name == dependencyInfo.Name);
+                var dependency = new Dependency
+                {
+                    Info = dependencyInfo,
+                    Instance = matchingMod
+                };
+
+                // verify dependency
+                if (dependency.IsModLoaderDependency || dependency.Instance != null)
+                {
+                    if (CompareVersions(dependency.DetectedVersion, dependency.Info.MinimumVersion) < 0)
+                    {
+                        dependency.Status = DependencyStatus.InvalidVersion;
+                    }
+                }
+
+                if (!dependency.IsModLoaderDependency)
+                {
+                    if (dependency.Instance == null)
+                    {
+                        dependency.Status = DependencyStatus.InvalidNotFound;
+                    }
+
+                    else if (matchingMod.Info.Dependencies != null &&
+                        matchingMod.Info.Dependencies.Where(dep => dep.Name == Info.Name).Count() > 0)
+                    {
+                        dependency.Status = DependencyStatus.InvalidRecursive;
+                    }
+
+                    else if (!matchingMod.AreDependenciesValid())
+                    {
+                        dependency.Status = DependencyStatus.InvalidNotFound;
+                    }
+                }
+
+                Dependencies.Add(dependency);
+            }
+        }
+
+        public bool AreDependenciesValid()
+        {
+            if (Info.Dependencies == null) return true;
+
+            if(Dependencies.Count() != Info.Dependencies.Length)
+            {
+                InitializeDependencies();
+            }
+            foreach(var dependency in Dependencies)
+            {
+                if (dependency.Status != DependencyStatus.Valid) return false;
+            }
+
+            return true;
+        }
+
+        // attempts to load a valid mod directory within Mods directory
+        public static bool TryLoadFromDirectory(Hat modLoader, string directoryName, out Mod mod)
+        {
+            mod = new Mod(modLoader);
             mod.DirectoryName = directoryName;
 
             var modDir = Path.Combine(GetModsDirectory(), directoryName);
@@ -183,9 +282,9 @@ namespace HatModLoader.Source
         }
 
         // attempts to load a valid mod zip package within Mods directory
-        public static bool TryLoadFromZip(string zipName, out Mod mod)
+        public static bool TryLoadFromZip(Hat modLoader, string zipName, out Mod mod)
         {
-            mod = new Mod()
+            mod = new Mod(modLoader)
             {
                 DirectoryName = zipName,
                 IsZip = true

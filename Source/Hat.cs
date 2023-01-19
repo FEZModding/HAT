@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using static HatModLoader.Source.Mod;
 
 namespace HatModLoader.Source
 {
@@ -34,26 +35,52 @@ namespace HatModLoader.Source
             Game = fez;
 
             Logger.Log("HAT", $"HAT Mod Loader {Version}");
-            LoadMods();
-            
+            PrepareMods();
         }
 
-        public void LoadMods()
+        public void PrepareMods()
         {
             Mods = new List<Mod>();
 
-            // check if directory is there
+            LoadMods();
+
+            if(Mods.Count == 0)
+            {
+                Logger.Log("HAT", $"No mods have been found in the directory.");
+                return;
+            }
+
+            RemoveDuplicates();
+            InitializeAndVerifyDependencies();
+
+            int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
+            int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
+
+            var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
+            var codeModsText = $"{codeModsCount} code mod{(codeModsCount != 1 ? "s" : "")}";
+            var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
+
+            Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
+        }
+
+        private void EnsureModDirectory()
+        {
             if (!Directory.Exists(Mod.GetModsDirectory()))
             {
                 Logger.Log("HAT", LogSeverity.Warning, "Main mods directory not found. Creating and skipping mod loading process...");
                 Directory.CreateDirectory(Mod.GetModsDirectory());
                 return;
             }
+        }
+
+        private void LoadMods()
+        {
+            EnsureModDirectory();
 
             // load mods in directories
-            foreach(var modDir in Mod.GetModDirectories())
+            foreach (var modDir in Mod.GetModDirectories())
             {
-                bool loadingState = Mod.TryLoadFromDirectory(modDir, out Mod mod);
+                bool loadingState = Mod.TryLoadFromDirectory(this, modDir, out Mod mod);
                 if (loadingState)
                 {
                     Mods.Add(mod);
@@ -64,41 +91,13 @@ namespace HatModLoader.Source
             // load mods packed into archives
             foreach (var modZip in Mod.GetModArchives())
             {
-                bool loadingState = Mod.TryLoadFromZip(modZip, out Mod mod);
+                bool loadingState = Mod.TryLoadFromZip(this, modZip, out Mod mod);
                 if (loadingState)
                 {
                     Mods.Add(mod);
                 }
                 LogModLoadingState(mod, loadingState);
             }
-
-            // verify and remove duplicates
-            var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
-            foreach(var modName in uniqueNames)
-            {
-                var sameNamedMods = Mods.Where(mod => mod.Info.Name == modName).ToList();
-                if(sameNamedMods.Count() > 1)
-                {
-                    sameNamedMods.Sort((mod1, mod2) => mod2.CompareVersions(mod1));
-                    var newestMod = sameNamedMods.First();
-                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple instances of mod {modName} detected! Leaving only the newest version ({newestMod.Info.Version})");
-
-                    foreach(var mod in sameNamedMods)
-                    {
-                        if (mod == newestMod) continue;
-                        Mods.Remove(mod);
-                    }
-                }
-            }
-
-            int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
-            int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
-
-            var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
-            var codeModsText = $"{codeModsCount} code mod{(codeModsCount != 1 ? "s" : "")}";
-            var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
-
-            Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
         }
 
         private void LogModLoadingState(Mod mod, bool loadState)
@@ -130,6 +129,66 @@ namespace HatModLoader.Source
                 {
                     Logger.Log("HAT", LogSeverity.Warning, $"Mod \"{mod.Info.Name}\" is empty and will not be added.");
                 }
+            }
+        }
+
+        private void RemoveDuplicates()
+        {
+            var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
+            foreach (var modName in uniqueNames)
+            {
+                var sameNamedMods = Mods.Where(mod => mod.Info.Name == modName).ToList();
+                if (sameNamedMods.Count() > 1)
+                {
+                    sameNamedMods.Sort((mod1, mod2) => mod2.CompareVersionsWith(mod1));
+                    var newestMod = sameNamedMods.First();
+                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple instances of mod {modName} detected! Leaving only the newest version ({newestMod.Info.Version})");
+
+                    foreach (var mod in sameNamedMods)
+                    {
+                        if (mod == newestMod) continue;
+                        Mods.Remove(mod);
+                    }
+                }
+            }
+        }
+
+        private void InitializeAndVerifyDependencies()
+        {
+            foreach (var mod in Mods)
+            {
+                mod.InitializeDependencies();
+            }
+
+            var invalidMods = Mods.Where(mod => !mod.AreDependenciesValid()).ToList();
+            foreach (var invalidMod in invalidMods)
+            {
+                var delegateIssues = invalidMod.Dependencies
+                    .Where(dep=>dep.Status != DependencyStatus.Valid)
+                    .Select(delegate (Dependency dependency)
+                    {
+                        string issue = "unknown";
+                        switch (dependency.Status)
+                        {
+                            case DependencyStatus.InvalidVersion:
+                                issue = $"needs version >{dependency.Info.MinimumVersion}, found {dependency.DetectedVersion}";
+                                break;
+                            case DependencyStatus.InvalidNotFound:
+                                issue = $"not found";
+                                break;
+                            case DependencyStatus.InvalidRecursive:
+                                issue = $"recursive dependency - consider merging mods";
+                                break;
+                        }
+
+                        return $"{dependency.Info.Name} ({issue})";
+                    }).ToList();
+
+                string error = $"Dependency issues in mod {invalidMod.Info.Name} found: {string.Join(", ", delegateIssues)}";
+
+                Logger.Log("HAT", LogSeverity.Warning, error);
+
+                Mods.Remove(invalidMod);
             }
         }
 
