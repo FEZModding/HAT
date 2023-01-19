@@ -94,6 +94,7 @@ namespace HatModLoader.Installers
 
             AddInactiveStringItem(null, null);
             AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name);
+            AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description);
             AddInactiveStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}");
             AddInactiveStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}");
 
