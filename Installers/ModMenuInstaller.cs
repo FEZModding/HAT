@@ -67,19 +67,22 @@ namespace HatModLoader.Installers
             var MenuLevelAddItemGeneric = MenuLevelType.GetMethods().FirstOrDefault(mi => mi.Name == "AddItem" && mi.GetParameters().Length == 5);
             var MenuLevelAddItemInt = MenuLevelAddItemGeneric.MakeGenericMethod(new Type[] { typeof(int) });
 
-            var menuIteratorItem = MenuLevelAddItemInt.Invoke(ModLevel, new object[] { 
-                null, (Action)delegate { }, false, 
-                (Func<int>) delegate{ return modMenuCurrentIndex; },
-                (Action<int, int>) delegate(int value, int change) {
-                    modMenuCurrentIndex += change;
-                    if (modMenuCurrentIndex < 0) modMenuCurrentIndex = Hat.Instance.Mods.Count-1;
-                    if (modMenuCurrentIndex >= Hat.Instance.Mods.Count) modMenuCurrentIndex = 0;
-                }
-            });
-            MenuItemType.GetProperty("SuffixText").SetValue(menuIteratorItem, (Func<string>)delegate
+            if (Hat.Instance.Mods.Count > 0)
             {
-                return $"{modMenuCurrentIndex + 1} / {Hat.Instance.Mods.Count}";
-            });
+                var menuIteratorItem = MenuLevelAddItemInt.Invoke(ModLevel, new object[] {
+                    null, (Action)delegate { }, false,
+                    (Func<int>) delegate{ return modMenuCurrentIndex; },
+                    (Action<int, int>) delegate(int value, int change) {
+                        modMenuCurrentIndex += change;
+                        if (modMenuCurrentIndex < 0) modMenuCurrentIndex = Hat.Instance.Mods.Count-1;
+                        if (modMenuCurrentIndex >= Hat.Instance.Mods.Count) modMenuCurrentIndex = 0;
+                    }
+                });
+                MenuItemType.GetProperty("SuffixText").SetValue(menuIteratorItem, (Func<string>)delegate
+                {
+                    return $"{modMenuCurrentIndex + 1} / {Hat.Instance.Mods.Count}";
+                });
+            }
 
             Action<string, Func<string>> AddInactiveStringItem = delegate (string name, Func<string> suffix)
             {
@@ -92,11 +95,18 @@ namespace HatModLoader.Installers
                 }
             };
 
-            AddInactiveStringItem(null, null);
-            AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name);
-            AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description);
-            AddInactiveStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}");
-            AddInactiveStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}");
+            if (Hat.Instance.Mods.Count == 0)
+            {
+                AddInactiveStringItem(null, () => "No HAT Mods Installed");
+            }
+            else
+            {
+                AddInactiveStringItem(null, null);
+                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name);
+                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description);
+                AddInactiveStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}");
+                AddInactiveStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}");
+            }
 
             // add created menu level to the main menu
             int modsIndex = ((IList)MenuLevelType.GetField("Items").GetValue(MenuRoot)).Count - 2;
