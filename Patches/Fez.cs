@@ -13,14 +13,19 @@ namespace FezGame
     {
         public static Hat HatML;
 
-        static patch_Fez()
+        public extern void orig_ctor();
+        [MonoModConstructor]
+        public void ctor()
         {
+            // executing IHatInstallers in static constructor so it can be called before everything else
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
             {
                 IHatInstaller installer = (IHatInstaller)Activator.CreateInstance(type);
                 installer.Install();
             }
+
+            orig_ctor();
         }
 
         protected extern void orig_Initialize();
