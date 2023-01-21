@@ -17,7 +17,7 @@ namespace FezGame
         [MonoModConstructor]
         public void ctor()
         {
-            // executing IHatInstallers in static constructor so it can be called before everything else
+            // executing IHatInstallers in a constructor so it can be called before everything else
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
             {
