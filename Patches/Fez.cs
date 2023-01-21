@@ -13,7 +13,8 @@ namespace FezGame
     {
         public static Hat HatML;
 
-        static patch_Fez()
+        protected extern void orig_Initialize();
+        protected override void Initialize()
         {
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
@@ -21,11 +22,7 @@ namespace FezGame
                 IHatInstaller installer = (IHatInstaller)Activator.CreateInstance(type);
                 installer.Install();
             }
-        }
 
-        protected extern void orig_Initialize();
-        protected override void Initialize()
-        {
             HatML = new Hat(this);
             HatML.InitalizeAssemblies();
             orig_Initialize();
