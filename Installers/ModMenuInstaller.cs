@@ -1,4 +1,5 @@
-﻿using FezGame;
+﻿using Common;
+using FezGame;
 using HatModLoader.Source;
 using MonoMod.RuntimeDetour;
 using System;
@@ -44,17 +45,24 @@ namespace HatModLoader.Installers
             const BindingFlags privBind = BindingFlags.NonPublic | BindingFlags.Instance;
 
             // prepare main menu object
-            object MenuRoot;
+            object MenuRoot = null;
             if (MenuBase.GetType() == MainMenuType)
             {
                 MenuRoot = MainMenuType.GetField("RealMenuRoot", privBind).GetValue(MenuBase);
             }
-            else
+            
+            if(MenuBase.GetType() != MainMenuType || MenuRoot == null)
             {
                 MenuRoot = MenuBaseType.GetField("MenuRoot", privBind).GetValue(MenuBase);
             }
-            MenuLevelType.GetField("IsDynamic").SetValue(MenuRoot, true);
 
+            if(MenuRoot == null)
+            {
+                Logger.Log("HAT", LogSeverity.Warning, "Unable to create MODS menu!");
+                return;
+            }
+
+            MenuLevelType.GetField("IsDynamic").SetValue(MenuRoot, true);
             // create new level
             object ModLevel = Activator.CreateInstance(MenuLevelType);
             MenuLevelType.GetField("IsDynamic").SetValue(ModLevel, true);
