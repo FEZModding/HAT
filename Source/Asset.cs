@@ -31,14 +31,37 @@ namespace HatModLoader.Source
         {
             // TODO: special conversion handling for different types, like images or animation
 
+            if(Extension == ".ogg" && AssetPath.StartsWith("music\\"))
+            {
+                IsMusicFile = true;
+                AssetPath = AssetPath.Substring("music\\".Length);
+            }
+
             Converted = false;
         }
 
         public void Inject()
         {
-            var cachedAssetsField = typeof(MemoryContentManager).GetField("cachedAssets", BindingFlags.NonPublic | BindingFlags.Static);
-            var cachedAssets = cachedAssetsField.GetValue(null) as Dictionary<string, byte[]>;
-            cachedAssets[AssetPath] = Data;
+            if (IsMusicFile)
+            {
+                // music files are loaded and stored separately in SoundManager service
+                var soundManager = ServiceHelper.Get<ISoundManager>();
+
+                // make sure music assets are already initialized. it can initialize only once so we don't have to worry
+                soundManager.InitializeLibrary();
+
+                var musicCacheField = typeof(SoundManager).GetField("MusicCache", BindingFlags.NonPublic | BindingFlags.Instance);
+                var musicCache = musicCacheField.GetValue(soundManager) as Dictionary<string, byte[]>;
+
+                musicCache[AssetPath] = Data;
+            }
+            else
+            {
+                // everything else uses static MemoryContentManager cache array
+                var cachedAssetsField = typeof(MemoryContentManager).GetField("cachedAssets", BindingFlags.NonPublic | BindingFlags.Static);
+                var cachedAssets = cachedAssetsField.GetValue(null) as Dictionary<string, byte[]>;
+                cachedAssets[AssetPath] = Data;
+            }
         }
 
         public static List<Asset> LoadDirectory(string directoryPath)

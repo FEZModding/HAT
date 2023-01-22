@@ -44,6 +44,8 @@ As an example, here's an instruction on how to change Gomez's house background p
 7. In your mod's `Assets` directory, create `background planes` directory and put your XNB file there.
 8. From now on Gomez's house should have your modified texture.
 
+A small note regarding music files: since they're normally stored in a separate `.pak` archive (`Music.pak`) and handled by a separate subsystem, music files are organized in a root directory. It is **not** the case for HAT mods, and instead it looks for OGG files (audio format used by music in this game) in `[Your mod]/Assets/Music` directory, then uses a path relative to this directory to identify the music file. For example, in order to replace `villageville\bed` music file, your new music file needs to be located at `[Your mod]/Assets/Music/villageville/bed.ogg`.
+
 ## Creating custom logic mod
 
 Mod loader loads library file given in metadata as an assembly, then attempts to create instances of every public class inheriting from game's `IGameComponent` interface before initialization (before any services are created). After the game has been initialized (that is, as soon as all necessary services are initiated), it adds created instances into the list of game's components and initializes them, allowing their `Update` and `Draw` (use `DrawableGameComponent`) to be properly executed within the game's loop.
