@@ -1,4 +1,5 @@
-﻿using FezEngine.Tools;
+﻿using FezEngine.Services;
+using FezEngine.Tools;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,18 +9,41 @@ using System.Reflection;
 
 namespace HatModLoader.Source
 {
-    public static class AssetsHelper
+    public class Asset
     {
-        public static void InjectAsset(string path, byte[] data)
+        public string AssetPath { get; private set; }
+        public string Extension { get; private set; }
+        public byte[] Data { get; private set; }
+
+        public bool Converted { get; private set; }
+        public bool IsMusicFile { get; private set; }
+
+        public Asset(string path, string extension, byte[] data)
+        {
+            AssetPath = path;
+            Extension = extension;
+            Data = data;
+
+            TryConvertAsset();
+        }
+
+        private void TryConvertAsset()
+        {
+            // TODO: special conversion handling for different types, like images or animation
+
+            Converted = false;
+        }
+
+        public void Inject()
         {
             var cachedAssetsField = typeof(MemoryContentManager).GetField("cachedAssets", BindingFlags.NonPublic | BindingFlags.Static);
             var cachedAssets = cachedAssetsField.GetValue(null) as Dictionary<string, byte[]>;
-            cachedAssets[path] = data;
+            cachedAssets[AssetPath] = Data;
         }
 
-        public static Dictionary<string, byte[]> LoadDirectory(string directoryPath)
+        public static List<Asset> LoadDirectory(string directoryPath)
         {
-            var assets = new Dictionary<string, byte[]>();
+            var assets = new List<Asset>();
 
             foreach (var path in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
             {
@@ -31,16 +55,16 @@ namespace HatModLoader.Source
                 if (extension.Length > 0)
                 {
                     byte[] bytes = File.ReadAllBytes(path);
-                    assets.Add(relativePath, ConvertFile(bytes, extension));
+                    assets.Add(new Asset(relativePath, extension, bytes));
                 }
             }
 
             return assets;
         }
 
-        public static Dictionary<string, byte[]> LoadZip(ZipArchive archive, string assetsDirectory)
+        public static List<Asset> LoadZip(ZipArchive archive, string assetsDirectory)
         {
-            var assets = new Dictionary<string, byte[]>();
+            var assets = new List<Asset>();
 
             foreach (var zipEntry in archive.Entries.Where(e => e.FullName.StartsWith(assetsDirectory, StringComparison.OrdinalIgnoreCase)))
             {
@@ -55,23 +79,11 @@ namespace HatModLoader.Source
                     byte[] bytes = new byte[zipFile.Length];
                     zipFile.Read(bytes, 0, bytes.Length);
 
-                    assets.Add(relativePath, ConvertFile(bytes, extension));
+                    assets.Add(new Asset(relativePath, extension, bytes));
                 }
             }
 
             return assets;
-        }
-
-        public static byte[] ConvertFile(byte[] original, string extension)
-        {
-            // TODO: special conversion handling for different types, like images or animation
-
-            if (extension == ".xnb")
-            {
-                return original;
-            }
-
-            return original;
         }
     }
 }

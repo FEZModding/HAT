@@ -63,7 +63,7 @@ namespace HatModLoader.Source
         public string DirectoryName { get; private set; }
         public List<Dependency> Dependencies { get; private set; }
         public bool IsZip { get; private set; }
-        public Dictionary<string, byte[]> Assets { get; private set; }
+        public List<Asset> Assets { get; private set; }
         public List<IGameComponent> Components { get; private set; }
 
         public bool IsAssetMod => Assets.Count > 0;
@@ -75,7 +75,7 @@ namespace HatModLoader.Source
 
             RawAssembly = null;
             Assembly = null;
-            Assets = new Dictionary<string, byte[]>();
+            Assets = new List<Asset>();
             Components = new List<IGameComponent>();
             Dependencies = new List<Dependency>();
         }
@@ -86,7 +86,7 @@ namespace HatModLoader.Source
             // override custom assets
             foreach (var asset in Assets)
             {
-                AssetsHelper.InjectAsset(asset.Key, asset.Value);
+                asset.Inject();
             }
         }
 
@@ -262,7 +262,7 @@ namespace HatModLoader.Source
                 var relativeDirName = new DirectoryInfo(path).Name;
                 if (relativeDirName.Equals(AssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
                 {
-                    mod.Assets = AssetsHelper.LoadDirectory(path);
+                    mod.Assets = Asset.LoadDirectory(path);
                     break;
                 }
             }
@@ -311,7 +311,7 @@ namespace HatModLoader.Source
                 {
                     if (zipEntry.FullName.StartsWith(AssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
                     {
-                        mod.Assets = AssetsHelper.LoadZip(archive, AssetsDirectoryName);
+                        mod.Assets = Asset.LoadZip(archive, AssetsDirectoryName);
                         break;
                     }
                 }
