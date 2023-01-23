@@ -97,7 +97,8 @@ namespace HatModLoader.Source
             foreach (var component in Components)
             {
                 ServiceHelper.AddComponent(component);
-                component.Initialize();
+                // initialization is done by just adding component if they're added past game init
+                //component.Initialize();
             }
         }
 

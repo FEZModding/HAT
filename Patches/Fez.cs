@@ -1,4 +1,5 @@
-﻿using HatModLoader.Helpers;
+﻿using FezEngine.Tools;
+using HatModLoader.Helpers;
 using HatModLoader.Installers;
 using HatModLoader.Source;
 using Microsoft.Xna.Framework;
@@ -9,7 +10,7 @@ using System.Reflection;
 
 namespace FezGame
 {
-    public class patch_Fez : Fez
+    class patch_Fez : Fez
     {
         public static Hat HatML;
 
@@ -36,7 +37,16 @@ namespace FezGame
             orig_Initialize();
             DrawingTools.Init();
             HatML.InitializeAssets();
-            HatML.InitalizeComponents();
+        }
+
+        internal static extern void orig_LoadComponents(Fez game);
+        internal static void LoadComponents(Fez game)
+        {
+            bool doLoad = !ServiceHelper.FirstLoadDone;
+            orig_LoadComponents(game);
+            if (doLoad) {
+                HatML.InitalizeComponents();
+            }
         }
 
         protected extern void orig_Update(GameTime gameTime);
