@@ -36,13 +36,239 @@ namespace FezGame.Components
                 AlwaysOnTop = true
             };
 
-            var LogoMap = new string[]
+            var Letters = new string[][]
             {
-                "# # ### ###",
-                "### ###  # ",
-                "### ###  # ",
-                "# # # #  # "
+                new string[]
+                {
+                    "###",
+                    "###",
+                    "###",
+                    "# #",
+                },
+                new string[]
+                {
+                    "## ",
+                    "###",
+                    "## ",
+                    "###",
+                },
+                new string[]
+                {
+                    "###",
+                    "#  ",
+                    "#  ",
+                    "###",
+                },
+                new string[]
+                {
+                    "## ",
+                    "# #",
+                    "# #",
+                    "## ",
+                },
+                new string[]
+                {
+                    "###",
+                    "## ",
+                    "#  ",
+                    "###",
+                },
+                new string[]
+                {
+                    "###",
+                    "## ",
+                    "#  ",
+                    "#  ",
+                },
+                new string[]
+                {
+                    "###",
+                    "#  ",
+                    "# #",
+                    "###",
+                },
+                new string[]
+                {
+                    "# #",
+                    "###",
+                    "###",
+                    "# #",
+                },
+                new string[]
+                {
+                    "###",
+                    " # ",
+                    " # ",
+                    "###",
+                },
+                new string[]
+                {
+                    "###",
+                    " # ",
+                    " # ",
+                    "## ",
+                },
+                new string[]
+                {
+                    "# #",
+                    "## ",
+                    "## ",
+                    "# #",
+                },
+                new string[]
+                {
+                    "#  ",
+                    "#  ",
+                    "#  ",
+                    "###",
+                },
+                new string[]
+                {
+                    "#   #",
+                    "## ##",
+                    "# # #",
+                    "#   #",
+                },
+                new string[]
+                {
+                    "#  #",
+                    "## #",
+                    "# ##",
+                    "#  #",
+                },
+                new string[]
+                {
+                    "###",
+                    "# #",
+                    "# #",
+                    "###",
+                },
+                new string[]
+                {
+                    "###",
+                    "# #",
+                    "## ",
+                    "#  ",
+                },
+                new string[]
+                {
+                    "### ",
+                    "# # ",
+                    "# # ",
+                    "####",
+                },
+                new string[]
+                {
+                    "###",
+                    "# #",
+                    "## ",
+                    "# #",
+                },
+                new string[]
+                {
+                    "###",
+                    "#  ",
+                    " ##",
+                    "###",
+                },
+                new string[]
+                {
+                    "###",
+                    " # ",
+                    " # ",
+                    " # ",
+                },
+                new string[]
+                {
+                    "# #",
+                    "# #",
+                    "# #",
+                    "###",
+                },
+                new string[]
+                {
+                    "# #",
+                    "# #",
+                    "# #",
+                    " # ",
+                },
+                new string[]
+                {
+                    "# # #",
+                    "# # #",
+                    "# # #",
+                    " # # ",
+                },
+                new string[]
+                {
+                    "# #",
+                    "# #",
+                    " #",
+                    "# #",
+                },
+                new string[]
+                {
+                    "# #",
+                    "# #",
+                    " # ",
+                    " # ",
+                },
+                new string[]
+                {
+                    "###",
+                    "  #",
+                    "## ",
+                    "###",
+                },
+                new string[]
+                {
+                    "  ",
+                    "  ",
+                    "  ",
+                    "  ",
+                },
             };
+
+            string LogoText = "HAT";
+
+            bool NextArgLogoText = false;
+            foreach (string arg in Environment.GetCommandLineArgs())
+            {
+                if (NextArgLogoText)
+                {
+                    LogoText = arg;
+                    break;
+                }
+                else if (arg == "--logo-text")
+                {
+                    NextArgLogoText = true;
+                }
+            }
+
+            string[] LogoMap =
+            {
+                "",
+                "",
+                "",
+                "",
+            };
+
+            foreach (char letter in LogoText)
+            {
+                int index = -1;
+                if (letter >= 'a' && letter <= 'z')
+                    index = letter - 'a';
+                if (letter >= 'A' && letter <= 'Z')
+                    index = letter - 'A';
+                if (letter == ' ')
+                    index = 26;
+                for (int i = 0; i < LogoMap.Length; i++)
+                {
+                    if (LogoMap[i].Length > 0)
+                        LogoMap[i] += " ";
+                    LogoMap[i] += Letters[index][i];
+                }
+            }
 
             var logoWidth = LogoMap[0].Length;
             var logoHeight = LogoMap.Length;
