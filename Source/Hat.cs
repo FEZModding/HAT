@@ -1,9 +1,11 @@
 ﻿using Common;
 using FezGame;
+using HatModLoader.Helpers;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using static HatModLoader.Helpers.ConfigHelper;
 using static HatModLoader.Source.Mod;
 
 namespace HatModLoader.Source
@@ -14,6 +16,7 @@ namespace HatModLoader.Source
 
         public Fez Game;
         public List<Mod> Mods;
+        public List<Mod> EnabledMods;
 
         public static string Version
         {
@@ -35,6 +38,8 @@ namespace HatModLoader.Source
             Game = fez;
 
             Logger.Log("HAT", $"HAT Mod Loader {Version}");
+            ConfigHelper.LoadHatConfig();
+            Logger.Log("HAT", $"HatConfig mods configured: {ConfigHelper.Config.Mods.Count}");
             PrepareMods();
         }
 
@@ -50,7 +55,11 @@ namespace HatModLoader.Source
                 return;
             }
 
-            RemoveDuplicates();
+            DisableMods();
+            DisableDuplicates();
+
+            EnabledMods = Mods.Where(mod => mod.IsEnabled).ToList();
+
             InitializeAndVerifyDependencies();
 
             int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
@@ -61,6 +70,8 @@ namespace HatModLoader.Source
             var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
 
             Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
+
+            ConfigHelper.SaveHatConfig();
         }
 
         private void EnsureModDirectory()
@@ -132,9 +143,21 @@ namespace HatModLoader.Source
             }
         }
 
-        private void RemoveDuplicates()
+        private void DisableMods()
         {
-            var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
+            foreach (Mod mod in Mods)
+            {
+                ModConfig? config = ConfigHelper.GetModConfig(mod.Info.Name, mod.Info.Version);
+                if (!config.HasValue)
+                    continue;
+                if (config.Value.Disabled.HasValue && config.Value.Disabled.Value == true)
+                    mod.IsEnabled = false;
+            }
+        }
+
+        private void DisableDuplicates()
+        {
+            var uniqueNames = Mods.Where(mod => mod.IsEnabled).Select(mod => mod.Info.Name).Distinct().ToList();
             foreach (var modName in uniqueNames)
             {
                 var sameNamedMods = Mods.Where(mod => mod.Info.Name == modName).ToList();
@@ -142,12 +165,12 @@ namespace HatModLoader.Source
                 {
                     sameNamedMods.Sort((mod1, mod2) => mod2.CompareVersionsWith(mod1));
                     var newestMod = sameNamedMods.First();
-                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple instances of mod {modName} detected! Leaving only the newest version ({newestMod.Info.Version})");
+                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple enabled instances of mod {modName} detected! Leaving only the newest version ({newestMod.Info.Version})");
 
                     foreach (var mod in sameNamedMods)
                     {
                         if (mod == newestMod) continue;
-                        Mods.Remove(mod);
+                        mod.IsEnabled = false;
                     }
                 }
             }
@@ -155,12 +178,12 @@ namespace HatModLoader.Source
 
         private void InitializeAndVerifyDependencies()
         {
-            foreach (var mod in Mods)
+            foreach (var mod in EnabledMods)
             {
                 mod.InitializeDependencies();
             }
 
-            var invalidMods = Mods.Where(mod => !mod.AreDependenciesValid()).ToList();
+            var invalidMods = EnabledMods.Where(mod => !mod.AreDependenciesValid()).ToList();
             foreach (var invalidMod in invalidMods)
             {
                 var delegateIssues = invalidMod.Dependencies
@@ -188,13 +211,14 @@ namespace HatModLoader.Source
 
                 Logger.Log("HAT", LogSeverity.Warning, error);
 
+                EnabledMods.Remove(invalidMod);
                 Mods.Remove(invalidMod);
             }
         }
 
         public void InitalizeAssemblies()
         {
-            foreach (var mod in Mods)
+            foreach (var mod in EnabledMods)
             {
                 mod.InitializeAssembly();
             }
@@ -203,7 +227,7 @@ namespace HatModLoader.Source
 
         public void InitializeAssets()
         {
-            foreach (var mod in Mods)
+            foreach (var mod in EnabledMods)
             {
                 mod.InitializeAssets();
             }
@@ -212,7 +236,7 @@ namespace HatModLoader.Source
 
         public void InitalizeComponents()
         {
-            foreach(var mod in Mods)
+            foreach(var mod in EnabledMods)
             {
                 mod.InitializeComponents();
             }

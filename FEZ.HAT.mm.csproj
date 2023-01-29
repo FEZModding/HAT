@@ -86,6 +86,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Helpers\ConfigHelper.cs" />
     <Compile Include="Helpers\DrawingTools.cs" />
     <Compile Include="Helpers\InputHelper.cs" />
     <Compile Include="Installers\IHatInstaller.cs" />

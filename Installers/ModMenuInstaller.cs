@@ -50,7 +50,7 @@ namespace HatModLoader.Installers
             {
                 MenuRoot = MainMenuType.GetField("RealMenuRoot", privBind).GetValue(MenuBase);
             }
-            
+
             if(MenuBase.GetType() != MainMenuType || MenuRoot == null)
             {
                 MenuRoot = MenuBaseType.GetField("MenuRoot", privBind).GetValue(MenuBase);
@@ -69,8 +69,6 @@ namespace HatModLoader.Installers
             MenuLevelType.GetProperty("Title").SetValue(ModLevel, "@MODS");
             MenuLevelType.GetField("Parent").SetValue(ModLevel, MenuRoot);
             MenuLevelType.GetField("Oversized").SetValue(ModLevel, true);
-
-
 
             var MenuLevelAddItemGeneric = MenuLevelType.GetMethods().FirstOrDefault(mi => mi.Name == "AddItem" && mi.GetParameters().Length == 5);
             var MenuLevelAddItemInt = MenuLevelAddItemGeneric.MakeGenericMethod(new Type[] { typeof(int) });
@@ -92,15 +90,30 @@ namespace HatModLoader.Installers
                 });
             }
 
-            Action<string, Func<string>> AddInactiveStringItem = delegate (string name, Func<string> suffix)
+            Action<string, Func<string>, Func<bool>> AddInactiveDisableableStringItem = delegate (string name, Func<string> suffix, Func<bool> disabled)
             {
                 var item = MenuLevelType.GetMethod("AddItem", new Type[] { typeof(string) })
                     .Invoke(ModLevel, new object[] {name});
                 MenuItemType.GetProperty("Selectable").SetValue(item, false);
-                if(suffix != null)
+                if (disabled != null)
+                {
+                    Func<string> newSuffixFunc = () => {
+                        MenuItemType.GetProperty("Disabled").SetValue(item, disabled());
+                        if (suffix == null)
+                            return "";
+                        return suffix();
+                    };
+                    MenuItemType.GetProperty("SuffixText").SetValue(item, newSuffixFunc);
+                }
+                else if (suffix != null)
                 {
                     MenuItemType.GetProperty("SuffixText").SetValue(item, suffix);
                 }
+            };
+
+            Action<string, Func<string>> AddInactiveStringItem = delegate (string name, Func<string> suffix)
+            {
+                AddInactiveDisableableStringItem(name, suffix, null);
             };
 
             if (Hat.Instance.Mods.Count == 0)
@@ -109,11 +122,12 @@ namespace HatModLoader.Installers
             }
             else
             {
+                Func<bool> shouldBeDisabled = () => !Hat.Instance.Mods[modMenuCurrentIndex].IsEnabled;
                 AddInactiveStringItem(null, null);
-                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name);
-                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description);
-                AddInactiveStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}");
-                AddInactiveStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}");
+                AddInactiveDisableableStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name + (shouldBeDisabled() ? " (Disabled)" : ""), shouldBeDisabled);
+                AddInactiveDisableableStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description, shouldBeDisabled);
+                AddInactiveDisableableStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}", shouldBeDisabled);
+                AddInactiveDisableableStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}", shouldBeDisabled);
             }
 
             // add created menu level to the main menu

@@ -149,7 +149,10 @@ namespace FezGame.Components
             Viewport viewport = DrawingTools.GetViewport();
             int modCount = Hat.Instance.Mods.Count;
             string hatText = $"HAT Mod Loader, version {Hat.Version}, {modCount} mod{(modCount != 1 ? "s" : "")} installed";
-            if (modCount == 69) hatText += "... nice";
+            int enabledModCount = Hat.Instance.EnabledMods.Count;
+            if (enabledModCount != modCount)
+                hatText += $", {enabledModCount} mod{(enabledModCount != 1 ? "s" : "")} enabled";
+            if (enabledModCount == 69) hatText += "... nice";
             Color textColor = Color.Lerp(Color.White, Color.Black, alpha);
 
             DrawingTools.BeginBatch();

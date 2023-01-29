@@ -69,6 +69,8 @@ namespace HatModLoader.Source
         public bool IsAssetMod => Assets.Count > 0;
         public bool IsCodeMod => RawAssembly != null;
 
+        public bool IsEnabled = true;
+
         public Mod(Hat modLoader)
         {
             ModLoader = modLoader;
