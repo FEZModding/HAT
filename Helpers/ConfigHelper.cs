@@ -45,6 +45,19 @@ namespace HatModLoader.Helpers
             return newModConfig;
         }
 
+        public static void SetModConfig(ModConfig newConfig)
+		{
+            for (int i = 0; i < Config.Mods.Count; i++)
+			{
+                if (Config.Mods[i].Name == newConfig.Name && Config.Mods[i].Version == newConfig.Version)
+				{
+                    Config.Mods[i] = newConfig;
+                    return;
+				}
+            }
+            Config.Mods.Add(newConfig);
+		}
+
         public static void LoadHatConfig()
         {
             HatConfig NewConfig;
@@ -78,6 +91,7 @@ namespace HatModLoader.Helpers
                 ModConfig mod = NewConfig.Mods[i];
                 if (!mod.Disabled.HasValue)
                     mod.Disabled = false;
+                NewConfig.Mods[i] = mod;
             }
 
             Config = NewConfig;

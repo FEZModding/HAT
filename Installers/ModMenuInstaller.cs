@@ -1,5 +1,6 @@
 ﻿using Common;
 using FezGame;
+using HatModLoader.Helpers;
 using HatModLoader.Source;
 using MonoMod.RuntimeDetour;
 using System;
@@ -9,6 +10,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using static HatModLoader.Helpers.ConfigHelper;
+using static HatModLoader.Source.Mod;
 
 namespace HatModLoader.Installers
 {
@@ -135,6 +138,24 @@ namespace HatModLoader.Installers
             AddInactiveDisableableStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description, shouldBeDisabled);
             AddInactiveDisableableStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}", shouldBeDisabled);
             AddInactiveDisableableStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}", shouldBeDisabled);
+
+            var EnableDisableButton = MenuLevelType.GetMethod("AddItem", new Type[] { typeof(string), typeof(Action) })
+                    .Invoke(ModLevel, new object[] { null, (Action) delegate {
+                        Metadata modInfo = Hat.Instance.Mods[modMenuCurrentIndex].Info;
+                        ModConfig config = ConfigHelper.GetModConfig(modInfo.Name, modInfo.Version);
+                        Logger.Log("HAT", $"Previous disabled state: {config.Disabled.HasValue && config.Disabled.Value == true}");
+                        config.Disabled = !(config.Disabled.HasValue && config.Disabled.Value == true);
+                        Logger.Log("HAT", $"New disabled state: {config.Disabled.HasValue && config.Disabled.Value == true}");
+                        ConfigHelper.SetModConfig(config);
+                        ConfigHelper.SaveHatConfig();
+                    }});
+            Func<string> EnableDisableText = delegate
+            {
+                Metadata modInfo = Hat.Instance.Mods[modMenuCurrentIndex].Info;
+                ModConfig config = ConfigHelper.GetModConfig(modInfo.Name, modInfo.Version);
+                return $"{((config.Disabled.HasValue && config.Disabled.Value == true) ? "Enable" : "Disable")} (restart required)";
+            };
+            MenuItemType.GetProperty("SuffixText").SetValue(EnableDisableButton, EnableDisableText);
         }
 
         public void Uninstall()
