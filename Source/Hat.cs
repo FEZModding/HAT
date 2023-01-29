@@ -145,14 +145,14 @@ namespace HatModLoader.Source
         }
 
         private void DisableMods()
-		{
+        {
             foreach (Mod mod in Mods)
-			{
+            {
                 ModConfig config = ConfigHelper.GetModConfig(mod.Info.Name, mod.Info.Version);
                 if (config.Disabled.HasValue && config.Disabled.Value == true)
                     mod.IsEnabled = false;
-			}
-		}
+            }
+        }
 
         private void DisableDuplicates()
         {
