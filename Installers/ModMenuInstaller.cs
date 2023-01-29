@@ -73,22 +73,15 @@ namespace HatModLoader.Installers
             var MenuLevelAddItemGeneric = MenuLevelType.GetMethods().FirstOrDefault(mi => mi.Name == "AddItem" && mi.GetParameters().Length == 5);
             var MenuLevelAddItemInt = MenuLevelAddItemGeneric.MakeGenericMethod(new Type[] { typeof(int) });
 
-            if (Hat.Instance.Mods.Count > 0)
-            {
-                var menuIteratorItem = MenuLevelAddItemInt.Invoke(ModLevel, new object[] {
-                    null, (Action)delegate { }, false,
-                    (Func<int>) delegate{ return modMenuCurrentIndex; },
-                    (Action<int, int>) delegate(int value, int change) {
-                        modMenuCurrentIndex += change;
-                        if (modMenuCurrentIndex < 0) modMenuCurrentIndex = Hat.Instance.Mods.Count-1;
-                        if (modMenuCurrentIndex >= Hat.Instance.Mods.Count) modMenuCurrentIndex = 0;
-                    }
-                });
-                MenuItemType.GetProperty("SuffixText").SetValue(menuIteratorItem, (Func<string>)delegate
-                {
-                    return $"{modMenuCurrentIndex + 1} / {Hat.Instance.Mods.Count}";
-                });
-            }
+            // add created menu level to the main menu
+            int modsIndex = ((IList)MenuLevelType.GetField("Items").GetValue(MenuRoot)).Count - 2;
+            MenuLevelType.GetMethod("AddItem", new Type[] { typeof(string), typeof(Action), typeof(int) })
+                .Invoke(MenuRoot, new object[] { "@MODS", (Action) delegate{
+                    MenuBaseType.GetMethod("ChangeMenuLevel").Invoke(MenuBase, new object[] { ModLevel, false });
+            }, modsIndex});
+
+            // needed to refresh the menu before the transition to it happens (pause menu)
+            MenuBaseType.GetMethod("RenderToTexture", privBind).Invoke(MenuBase, new object[] { });
 
             Action<string, Func<string>, Func<bool>> AddInactiveDisableableStringItem = delegate (string name, Func<string> suffix, Func<bool> disabled)
             {
@@ -119,26 +112,29 @@ namespace HatModLoader.Installers
             if (Hat.Instance.Mods.Count == 0)
             {
                 AddInactiveStringItem(null, () => "No HAT Mods Installed");
+                return;
             }
-            else
+
+            var menuIteratorItem = MenuLevelAddItemInt.Invoke(ModLevel, new object[] {
+                null, (Action)delegate { }, false,
+                (Func<int>) delegate{ return modMenuCurrentIndex; },
+                (Action<int, int>) delegate(int value, int change) {
+                    modMenuCurrentIndex += change;
+                    if (modMenuCurrentIndex < 0) modMenuCurrentIndex = Hat.Instance.Mods.Count-1;
+                    if (modMenuCurrentIndex >= Hat.Instance.Mods.Count) modMenuCurrentIndex = 0;
+                }
+            });
+            MenuItemType.GetProperty("SuffixText").SetValue(menuIteratorItem, (Func<string>)delegate
             {
-                Func<bool> shouldBeDisabled = () => !Hat.Instance.Mods[modMenuCurrentIndex].IsEnabled;
-                AddInactiveStringItem(null, null);
-                AddInactiveDisableableStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name + (shouldBeDisabled() ? " (Disabled)" : ""), shouldBeDisabled);
-                AddInactiveDisableableStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description, shouldBeDisabled);
-                AddInactiveDisableableStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}", shouldBeDisabled);
-                AddInactiveDisableableStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}", shouldBeDisabled);
-            }
+                return $"{modMenuCurrentIndex + 1} / {Hat.Instance.Mods.Count}";
+            });
 
-            // add created menu level to the main menu
-            int modsIndex = ((IList)MenuLevelType.GetField("Items").GetValue(MenuRoot)).Count - 2;
-            MenuLevelType.GetMethod("AddItem", new Type[] { typeof(string), typeof(Action), typeof(int) })
-                .Invoke(MenuRoot, new object[] { "@MODS", (Action) delegate{
-                    MenuBaseType.GetMethod("ChangeMenuLevel").Invoke(MenuBase, new object[] { ModLevel, false });
-            }, modsIndex});
-
-            // needed to refresh the menu before the transition to it happens (pause menu)
-            MenuBaseType.GetMethod("RenderToTexture", privBind).Invoke(MenuBase, new object[] { });
+            Func<bool> shouldBeDisabled = () => !Hat.Instance.Mods[modMenuCurrentIndex].IsEnabled;
+            AddInactiveStringItem(null, null);
+            AddInactiveDisableableStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name + (shouldBeDisabled() ? " (Disabled)" : ""), shouldBeDisabled);
+            AddInactiveDisableableStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description, shouldBeDisabled);
+            AddInactiveDisableableStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}", shouldBeDisabled);
+            AddInactiveDisableableStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}", shouldBeDisabled);
         }
 
         public void Uninstall()

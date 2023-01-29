@@ -30,7 +30,7 @@ namespace HatModLoader.Helpers
 
         public static HatConfig Config { get; private set; }
 
-        public static ModConfig? GetModConfig(string Name, string Version)
+        public static ModConfig GetModConfig(string Name, string Version)
         {
             foreach (ModConfig modConfig in Config.Mods)
             {
@@ -76,7 +76,7 @@ namespace HatModLoader.Helpers
             for (int i = 0; i < NewConfig.Mods.Count; i++)
             {
                 ModConfig mod = NewConfig.Mods[i];
-                if (mod.Disabled == null)
+                if (!mod.Disabled.HasValue)
                     mod.Disabled = false;
             }
 

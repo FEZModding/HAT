@@ -52,6 +52,7 @@ namespace HatModLoader.Source
             if(Mods.Count == 0)
             {
                 Logger.Log("HAT", $"No mods have been found in the directory.");
+                EnabledMods = new List<Mod>();
                 return;
             }
 
@@ -144,16 +145,14 @@ namespace HatModLoader.Source
         }
 
         private void DisableMods()
-        {
+		{
             foreach (Mod mod in Mods)
-            {
-                ModConfig? config = ConfigHelper.GetModConfig(mod.Info.Name, mod.Info.Version);
-                if (!config.HasValue)
-                    continue;
-                if (config.Value.Disabled.HasValue && config.Value.Disabled.Value == true)
+			{
+                ModConfig config = ConfigHelper.GetModConfig(mod.Info.Name, mod.Info.Version);
+                if (config.Disabled.HasValue && config.Disabled.Value == true)
                     mod.IsEnabled = false;
-            }
-        }
+			}
+		}
 
         private void DisableDuplicates()
         {
