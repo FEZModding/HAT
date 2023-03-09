@@ -198,6 +198,10 @@ namespace HatModLoader.Source
             {
                 mod.InitializeAssembly();
             }
+            foreach (var mod in Mods)
+            {
+                mod.InitializeComponents();
+            }
             Logger.Log("HAT", "Assembly initialization completed!");
         }
 
@@ -214,7 +218,7 @@ namespace HatModLoader.Source
         {
             foreach(var mod in Mods)
             {
-                mod.InitializeComponents();
+                mod.InjectComponents();
             }
             Logger.Log("HAT", "Component initialization completed!");
         }

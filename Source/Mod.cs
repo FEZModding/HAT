@@ -90,8 +90,21 @@ namespace HatModLoader.Source
             }
         }
 
-        // injects custom components of this mod into the game
+        
         public void InitializeComponents()
+        {
+            if (RawAssembly == null || Assembly == null) return;
+
+            foreach (Type type in Assembly.GetExportedTypes())
+            {
+                if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic) continue;
+                var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { ModLoader.Game });
+                Components.Add(gameComponent);
+            }
+        }
+
+        // injects custom components of this mod into the game
+        public void InjectComponents()
         {
             // add game components
             foreach (var component in Components)
@@ -102,17 +115,11 @@ namespace HatModLoader.Source
             }
         }
 
+        // loads mod's assemblies
         public void InitializeAssembly()
         {
             if (RawAssembly == null) return;
             Assembly = Assembly.Load(RawAssembly);
-
-            foreach (Type type in Assembly.GetExportedTypes())
-            {
-                if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic) continue;
-                var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { ModLoader.Game });
-                Components.Add(gameComponent);
-            }
         }
 
         public void Dispose()
