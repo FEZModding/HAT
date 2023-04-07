@@ -67,7 +67,7 @@
       <HintPath>$(FezDir)\XnaWordWrapCore.dll</HintPath>
       <Private>False</Private>
     </Reference>
-        <Reference Include="MonoMod">
+    <Reference Include="MonoMod">
       <HintPath>$(MonoModDir)\MonoMod.exe</HintPath>
       <Private>False</Private>
     </Reference>
