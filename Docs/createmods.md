@@ -33,14 +33,12 @@ All other fields are purely informational.
 
 If you want to add new assets or override existing ones, create `Assets` directory within your mods directory. All valid files within it will be loaded as game assets with path relative to the `Assets` directory. Currently, the only supported format is `.xnb`, but in the future, a conversion from popular file formats will be implemented, allowing much easier modding process (for isntance, PNG files will be automatically converted to Texture2D assets). As of right now, there isn't really a good way of creating `.xnb` assets and you have to rely on [FEZRepacker](https://github.com/Krzyhau/FEZRepacker).
 
-As an example, here's an instruction on how to change Gomez's house background plane. Keep in mind that right now this process is unnecessarily convoluted and will definitely be simplified with the next FEZRepacker update:
+As an example, here's an instruction on how to change Gomez's house background plane.
 
 1. Use FEZRepacker to unpack game's `Other.pak` archive.
 2. Find `background planes/gomez_house_a.png` file and copy it.
-3. Create directory, name it something like `Export`. In it, create `background planes` directory and put a copy of PNG file there.
-4. Edit the image however you'd like.
-5. Use FEZRepacker to pack the `Export` directory into a PAK package.
-6. Use FEZRepacker to unpack previously packed PAK file into XNB files. You should have a modified `gomez_house_a.xnb` file.
+3. Edit the image however you'd like.
+4. Use FEZRepacker to convert the image into an XNB.
 7. In your mod's `Assets` directory, create `background planes` directory and put your XNB file there.
 8. From now on Gomez's house should have your modified texture.
 
