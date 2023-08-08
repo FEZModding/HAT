@@ -79,17 +79,6 @@ namespace HatModLoader.Source
             Components = new List<IGameComponent>();
             Dependencies = new List<Dependency>();
         }
-
-        // inject custom assets of this mod into the game
-        public void InitializeAssets()
-        {
-            // override custom assets
-            foreach (var asset in Assets)
-            {
-                asset.Inject();
-            }
-        }
-
         
         public void InitializeComponents()
         {

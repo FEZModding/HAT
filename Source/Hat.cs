@@ -205,13 +205,16 @@ namespace HatModLoader.Source
             Logger.Log("HAT", "Assembly initialization completed!");
         }
 
-        public void InitializeAssets()
+        public List<Asset> GetFullAssetList()
         {
+            var list = new List<Asset>();
+
             foreach (var mod in Mods)
             {
-                mod.InitializeAssets();
+                list.AddRange(mod.Assets);
             }
-            Logger.Log("HAT", "Asset injection completed!");
+
+            return list;
         }
 
         public void InitalizeComponents()

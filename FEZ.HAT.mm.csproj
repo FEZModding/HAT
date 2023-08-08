@@ -88,6 +88,7 @@
   <ItemGroup>
     <Compile Include="Helpers\DrawingTools.cs" />
     <Compile Include="Helpers\InputHelper.cs" />
+    <Compile Include="Installers\AssetManagementInstaller.cs" />
     <Compile Include="Installers\IHatInstaller.cs" />
     <Compile Include="Installers\LoggerModifier.cs" />
     <Compile Include="Installers\ModMenuInstaller.cs" />
