@@ -40,10 +40,12 @@ namespace HatModLoader.Source
 
         public enum DependencyStatus
         {
+            None,
             Valid,
             InvalidVersion,
             InvalidNotFound,
-            InvalidRecursive
+            InvalidRecursive,
+            InvalidDependencyTree
         }
 
         public struct Dependency
@@ -53,6 +55,11 @@ namespace HatModLoader.Source
             public DependencyStatus Status;
             public bool IsModLoaderDependency => Info.Name == "HAT";
             public string DetectedVersion => IsModLoaderDependency ? Hat.Version : (Instance != null ? Instance.Info.Version : null);
+
+            public void SetStatus(DependencyStatus status)
+            {
+                this.Status = status;
+            }
         }
 
         public Hat ModLoader;
@@ -190,6 +197,10 @@ namespace HatModLoader.Source
                     {
                         dependency.Status = DependencyStatus.InvalidVersion;
                     }
+                    else
+                    {
+                        dependency.Status = DependencyStatus.Valid;
+                    }
                 }
 
                 if (!dependency.IsModLoaderDependency)
@@ -198,16 +209,14 @@ namespace HatModLoader.Source
                     {
                         dependency.Status = DependencyStatus.InvalidNotFound;
                     }
-
-                    else if (matchingMod.Info.Dependencies != null &&
-                        matchingMod.Info.Dependencies.Where(dep => dep.Name == Info.Name).Count() > 0)
+                    else if (dependency.Instance.AreDependenciesValid())
                     {
-                        dependency.Status = DependencyStatus.InvalidRecursive;
+                        dependency.Status = DependencyStatus.Valid;
                     }
 
-                    else if (!matchingMod.AreDependenciesValid())
+                    if (IsDependencyRecursive(ref dependency))
                     {
-                        dependency.Status = DependencyStatus.InvalidNotFound;
+                        dependency.Status = DependencyStatus.InvalidRecursive;
                     }
                 }
 
@@ -215,20 +224,64 @@ namespace HatModLoader.Source
             }
         }
 
-        public bool AreDependenciesValid()
+        private bool IsDependencyRecursive(ref Dependency dependency)
         {
-            if (Info.Dependencies == null) return true;
+            var currentModQueue = new List<Mod>() { dependency.Instance };
 
-            if(Dependencies.Count() != Info.Dependencies.Length)
+            var iterationsCount = ModLoader.Mods.Count();
+            
+            while(currentModQueue.Count > 0)
             {
-                InitializeDependencies();
+                var newDependencyMods = currentModQueue.SelectMany(mod => mod.Dependencies).Select(dep => dep.Instance).ToList();
+                if (newDependencyMods.Contains(this))
+                {
+                    return true;
+                }
+
+                currentModQueue = newDependencyMods;
+
+                iterationsCount--;
+
+                if(iterationsCount <= 0) {
+                    break;
+                }
             }
+
+            return false;
+        }
+
+        public bool TryFinalizeDependencies()
+        {
             foreach(var dependency in Dependencies)
             {
-                if (dependency.Status != DependencyStatus.Valid) return false;
+                if (dependency.IsModLoaderDependency) continue;
+
+                if (!dependency.Instance.AreDependenciesFinalized())
+                {
+                    return false;
+                }
+
+                dependency.SetStatus(
+                    dependency.Instance.AreDependenciesValid()
+                    ? DependencyStatus.Valid
+                    : DependencyStatus.InvalidDependencyTree
+                );
             }
 
             return true;
+        }
+
+        public bool AreDependenciesFinalized()
+        {
+            return Dependencies.All(dependency => dependency.Status != DependencyStatus.None);
+        }
+
+        public bool AreDependenciesValid()
+        {
+            if (Info.Dependencies == null) return true; // if mod has no dependencies, they are "valid"
+            if (Info.Dependencies.Count() != Dependencies.Count()) return false;
+
+            return Dependencies.All(dependency => dependency.Status == DependencyStatus.Valid);
         }
 
         // attempts to load a valid mod directory within Mods directory

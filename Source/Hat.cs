@@ -1,6 +1,7 @@
 ﻿using Common;
 using FezGame;
 using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,6 +15,7 @@ namespace HatModLoader.Source
 
         public Fez Game;
         public List<Mod> Mods;
+        public List<Mod> InvalidMods;
 
         public static string Version
         {
@@ -51,7 +53,9 @@ namespace HatModLoader.Source
             }
 
             RemoveDuplicates();
-            InitializeAndVerifyDependencies();
+            InitializeDependencies();
+            FilterOutInvalidMods();
+            SortModsBasedOnDependencies();
 
             int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
             int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
@@ -61,6 +65,13 @@ namespace HatModLoader.Source
             var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
 
             Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
+
+            Logger.Log("HAT", $"Mods in their order of appearance:");
+
+            foreach(var mod in Mods)
+            {
+                Logger.Log("HAT", $"  {mod.Info.Name} by {mod.Info.Author} version {mod.Info.Version}");
+            }
         }
 
         private void EnsureModDirectory()
@@ -132,6 +143,7 @@ namespace HatModLoader.Source
             }
         }
 
+        // filter out mod duplicates (mods having the same ID/name) and leave out only the newest 
         private void RemoveDuplicates()
         {
             var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
@@ -153,15 +165,44 @@ namespace HatModLoader.Source
             }
         }
 
-        private void InitializeAndVerifyDependencies()
+        private void InitializeDependencies()
         {
             foreach (var mod in Mods)
             {
                 mod.InitializeDependencies();
             }
 
-            var invalidMods = Mods.Where(mod => !mod.AreDependenciesValid()).ToList();
-            foreach (var invalidMod in invalidMods)
+            FinalizeDependencies();
+        }
+
+        private void FinalizeDependencies()
+        {
+            for(int i=0;i<=Mods.Count; i++)
+            {
+                if(i == Mods.Count)
+                {
+                    // there's no possible way to have more dependency nesting levels than the mod count. Escape!
+                    throw new ApplicationException("Stuck in a mod dependency finalization loop!");
+                }
+
+                bool noInvalidMods = true;
+                foreach (var mod in Mods)
+                {
+                    if (mod.TryFinalizeDependencies()) continue;
+
+                    noInvalidMods = false;
+                }
+                if (noInvalidMods)
+                {
+                    break;
+                }
+            }
+        }
+
+        private void FilterOutInvalidMods()
+        {
+            InvalidMods = Mods.Where(mod => !mod.AreDependenciesValid()).ToList();
+            foreach (var invalidMod in InvalidMods)
             {
                 var delegateIssues = invalidMod.Dependencies
                     .Where(dep=>dep.Status != DependencyStatus.Valid)
@@ -177,7 +218,10 @@ namespace HatModLoader.Source
                                 issue = $"not found";
                                 break;
                             case DependencyStatus.InvalidRecursive:
-                                issue = $"recursive dependency - consider merging mods";
+                                issue = $"recursive dependency - consider merging mods or separating it into modules";
+                                break;
+                            case DependencyStatus.InvalidDependencyTree:
+                                issue = $"couldn't load its own dependencies";
                                 break;
                         }
 
@@ -190,6 +234,16 @@ namespace HatModLoader.Source
 
                 Mods.Remove(invalidMod);
             }
+        }
+
+        public void SortModsBasedOnDependencies()
+        {
+            Mods.Sort((a, b) =>
+            {
+                if (a.Dependencies.Where(d => d.Instance == b).Any()) return 1;
+                if (b.Dependencies.Where(d => d.Instance == a).Any()) return -1;
+                return 0;
+            });
         }
 
         public void InitalizeAssemblies()
