@@ -28,7 +28,10 @@ It's that simple!
 ## Building HAT
 
 1. Clone repository.
-2. Copy all dependencies listed in `Dependencies` directory and paste them into said directory.
+2. Edit `UserProperties.xml` to set up dependencies:
+* Remove the property `UserPropertiesNotSetUp`.
+* Set `FezDir` and `MonoModDir` to their respective directories. If you already have a FEZ installation with HAT, then these directories are probably all the same directory.
+* _Optional but recommended_: To prevent git from tracking your updated `UserProperties.xml`, run the command `git update-index --skip-worktree UserProperties.xml`.
 3. Build it. idk. it should work.
 
 ## "Documentation"
