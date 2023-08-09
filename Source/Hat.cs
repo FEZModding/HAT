@@ -36,13 +36,16 @@ namespace HatModLoader.Source
             Instance = this;
             Game = fez;
 
+            Mods = new List<Mod>();
+            InvalidMods = new List<Mod>();
+
             Logger.Log("HAT", $"HAT Mod Loader {Version}");
             PrepareMods();
         }
 
         public void PrepareMods()
         {
-            Mods = new List<Mod>();
+            Mods.Clear();
 
             LoadMods();
 
