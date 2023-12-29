@@ -1,5 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Project properties -->
+
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -20,13 +22,43 @@
 
   <Import Project="$(ProjectDir)UserProperties.xml" />
 
-  <Target Name="VerifyModReferences" BeforeTargets="Build">
+  <!-- Build operations -->
+
+  <Target Name="VerifyModReferences" BeforeTargets="BeforeBuild">
     <Error Text="You forgot to edit UserProperties.xml." Condition="$(UserPropertiesNotSetUp) == True" />
   </Target>
 
-  <Target Name="PrepareHat" AfterTargets="Build">
-    <Copy Condition="$(CopyOverHATToFez) == True" SourceFiles="$(TargetDir)$(TargetName).dll;$(TargetDir)$(TargetName).pdb" DestinationFolder="$(FezDir)\" Retries="0" />
+  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.mm.dll')">
+    <ItemGroup>
+      <HookBinaries Include="FEZ.exe" />
+      <HookBinaries Include="FezEngine.dll" />
+      <HookBinaries Include="FNA.dll" />
+    </ItemGroup>
+    <Exec Command='"$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' WorkingDirectory="$(MonoModDir)" />
+    
+    <ItemGroup>
+      <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)"/>
+    </ItemGroup>
+    <ILRepack
+      Parallel = "True"
+      InputAssemblies = "@(GeneratedHookBinaries)"
+      TargetKind = "Dll"
+      OutputFile = "$(TargetDir)FEZ.Hooks.mm.dll"
+    />
+    <Delete Files="@(GeneratedHookBinaries)"/>
   </Target>
+
+  <Target Name="PrepareHat" AfterTargets="Build">
+    <Copy Condition="$(CopyOverHATToFez) == True" 
+          SourceFiles="$(TargetDir)$(TargetName).dll;$(TargetDir)$(TargetName).pdb;$(TargetDir)FEZ.Hooks.mm.dll" 
+          DestinationFolder="$(FezDir)\" Retries="0" />
+  </Target>
+
+  <!-- Dependencies -->
+
+  <ItemGroup>
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Common">
@@ -67,6 +99,10 @@
     </Reference>
     <Reference Include="MonoMod.Utils">
       <HintPath>$(MonoModDir)\MonoMod.Utils.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FEZ.Hooks.mm">
+      <HintPath>$(TargetDir)FEZ.Hooks.mm.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
