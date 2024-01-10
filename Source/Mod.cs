@@ -312,7 +312,7 @@ namespace HatModLoader.Source
                 var relativeDirName = new DirectoryInfo(path).Name;
                 if (relativeDirName.Equals(AssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
                 {
-                    mod.Assets = Asset.LoadDirectory(path);
+                    mod.Assets = Asset.ConvertDirectoryToAssetList(path);
                     break;
                 }
             }
@@ -361,7 +361,7 @@ namespace HatModLoader.Source
                 {
                     if (zipEntry.FullName.StartsWith(AssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
                     {
-                        mod.Assets = Asset.LoadZip(archive, AssetsDirectoryName);
+                        mod.Assets = Asset.ConvertZipToAssetList(archive, AssetsDirectoryName);
                         break;
                     }
                 }

@@ -49,8 +49,13 @@
   </Target>
 
   <Target Name="PrepareHat" AfterTargets="Build">
+    <ItemGroup>
+      <SourceFiles Include="$(TargetDir)$(TargetName).dll" />
+      <SourceFiles Include="$(TargetDir)$(TargetName).pdb" />
+      <SourceFiles Include="$(TargetDir)FEZ.Hooks.mm.dll" />
+    </ItemGroup>
     <Copy Condition="$(CopyOverHATToFez) == True" 
-          SourceFiles="$(TargetDir)$(TargetName).dll;$(TargetDir)$(TargetName).pdb;$(TargetDir)FEZ.Hooks.mm.dll" 
+          SourceFiles="@(SourceFiles)" 
           DestinationFolder="$(FezDir)\" Retries="0" />
   </Target>
 
@@ -103,6 +108,10 @@
     </Reference>
     <Reference Include="FEZ.Hooks.mm">
       <HintPath>$(TargetDir)FEZ.Hooks.mm.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FEZRepacker.Core">
+      <HintPath>$(FezDir)\FEZRepacker.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
