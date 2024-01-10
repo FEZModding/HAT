@@ -1,8 +1,6 @@
 ﻿using Common;
 using Microsoft.Xna.Framework;
 using MonoMod.RuntimeDetour;
-using System;
-using System.IO;
 using System.Reflection;
 
 namespace HatModLoader.Installers

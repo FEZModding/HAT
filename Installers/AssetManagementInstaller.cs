@@ -4,8 +4,6 @@ using FezEngine.Tools;
 using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using MonoMod.RuntimeDetour;
-using System;
-using System.Collections.Generic;
 using System.Reflection;
 
 namespace HatModLoader.Installers

@@ -1,13 +1,6 @@
-﻿using Common;
-using FEZRepacker.Converter.FileSystem;
+﻿using FEZRepacker.Converter.FileSystem;
 using FEZRepacker.Converter.XNB;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using static FezEngine.Effects.LightingPostEffect;
 
 namespace HatModLoader.Source
 {

@@ -1,11 +1,4 @@
-﻿using MonoMod;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace FezGame.Tools
+﻿namespace FezGame.Tools
 {
     public static class patch_StaticText
     {

@@ -1,10 +1,5 @@
 ﻿using Common;
 using FezGame;
-using Microsoft.Xna.Framework;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using static HatModLoader.Source.Mod;
 
 namespace HatModLoader.Source

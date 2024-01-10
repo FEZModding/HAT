@@ -4,8 +4,6 @@ using HatModLoader.Installers;
 using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using MonoMod;
-using System;
-using System.Linq;
 using System.Reflection;
 
 namespace FezGame
