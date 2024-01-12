@@ -1,4 +1,5 @@
 ﻿using FezEngine.Tools;
+using HatModLoader.Source.Assets;
 using Microsoft.Xna.Framework;
 using System.IO.Compression;
 using System.Reflection;
@@ -65,10 +66,10 @@ namespace HatModLoader.Source
         public string DirectoryName { get; private set; }
         public List<Dependency> Dependencies { get; private set; }
         public bool IsZip { get; private set; }
-        public List<Asset> Assets { get; private set; }
+        public List<AssetProvider> AssetProviders { get; private set; }
         public List<IGameComponent> Components { get; private set; }
 
-        public bool IsAssetMod => Assets.Count > 0;
+        public bool IsAssetMod => AssetProviders.Count > 0;
         public bool IsCodeMod => RawAssembly != null;
 
         public Mod(Hat modLoader)
@@ -77,7 +78,7 @@ namespace HatModLoader.Source
 
             RawAssembly = null;
             Assembly = null;
-            Assets = new List<Asset>();
+            AssetProviders = new List<AssetProvider>();
             Components = new List<IGameComponent>();
             Dependencies = new List<Dependency>();
         }
@@ -279,6 +280,15 @@ namespace HatModLoader.Source
             return Dependencies.All(dependency => dependency.Status == DependencyStatus.Valid);
         }
 
+        private void AddSourceAsProviderIfValid(FileSourceProxy source)
+        {
+            if (source.IsValid())
+            {
+                AssetProviders.Add(new AssetProvider(source));
+            }
+        }
+
+
         // attempts to load a valid mod directory within Mods directory
         public static bool TryLoadFromDirectory(Hat modLoader, string directoryName, out Mod mod)
         {
@@ -307,7 +317,7 @@ namespace HatModLoader.Source
                 var relativeDirName = new DirectoryInfo(path).Name;
                 if (relativeDirName.Equals(AssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
                 {
-                    mod.Assets = Asset.ConvertDirectoryToAssetList(path);
+                    mod.AddSourceAsProviderIfValid(new DirectorySourceProxy(path));
                     break;
                 }
             }
@@ -338,7 +348,7 @@ namespace HatModLoader.Source
             var zipPath = Path.Combine(GetModsDirectory(), zipName);
             if (!File.Exists(zipPath)) return false;
 
-            using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Update))
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Update))
             {
                 foreach (var zipEntry in archive.Entries.Where(e => !e.FullName.Contains("/")))
                 {
@@ -348,15 +358,6 @@ namespace HatModLoader.Source
                         {
                             if (!mod.TryLoadMetadata(reader)) return false;
                         }
-                        break;
-                    }
-                }
-
-                foreach (var zipEntry in archive.Entries)
-                {
-                    if (zipEntry.FullName.StartsWith(AssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        mod.Assets = Asset.ConvertZipToAssetList(archive, AssetsDirectoryName);
                         break;
                     }
                 }
@@ -374,6 +375,8 @@ namespace HatModLoader.Source
                     }
                 }
             }
+
+            mod.AddSourceAsProviderIfValid(new ZipSourceProxy(zipPath, AssetsDirectoryName));
 
             return mod.IsAssetMod || mod.IsCodeMod;
         }

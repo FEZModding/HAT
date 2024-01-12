@@ -34,18 +34,13 @@
       <HookBinaries Include="FezEngine.dll" />
       <HookBinaries Include="FNA.dll" />
     </ItemGroup>
-    <Exec Command='"$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' WorkingDirectory="$(MonoModDir)" />
+    <Exec Command="&quot;$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe&quot; &quot;$(FezDir)\%(HookBinaries.Identity)&quot; &quot;$(TargetDir)MMHOOK_%(HookBinaries.Identity)&quot;" WorkingDirectory="$(MonoModDir)" />
     
     <ItemGroup>
-      <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)"/>
+      <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)" />
     </ItemGroup>
-    <ILRepack
-      Parallel = "True"
-      InputAssemblies = "@(GeneratedHookBinaries)"
-      TargetKind = "Dll"
-      OutputFile = "$(TargetDir)FEZ.Hooks.mm.dll"
-    />
-    <Delete Files="@(GeneratedHookBinaries)"/>
+    <ILRepack Parallel="True" InputAssemblies="@(GeneratedHookBinaries)" TargetKind="Dll" OutputFile="$(TargetDir)FEZ.Hooks.mm.dll" />
+    <Delete Files="@(GeneratedHookBinaries)" />
   </Target>
 
   <Target Name="PrepareHat" AfterTargets="Build">
@@ -54,9 +49,7 @@
       <SourceFiles Include="$(TargetDir)$(TargetName).pdb" />
       <SourceFiles Include="$(TargetDir)FEZ.Hooks.mm.dll" />
     </ItemGroup>
-    <Copy Condition="$(CopyOverHATToFez) == True" 
-          SourceFiles="@(SourceFiles)" 
-          DestinationFolder="$(FezDir)\" Retries="0" />
+    <Copy Condition="$(CopyOverHATToFez) == True" SourceFiles="@(SourceFiles)" DestinationFolder="$(FezDir)\" Retries="0" />
   </Target>
 
   <!-- Dependencies -->

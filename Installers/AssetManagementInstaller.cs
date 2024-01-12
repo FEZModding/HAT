@@ -5,66 +5,99 @@ using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
+using FezEngine.Structure;
+
+using GetCleanPath_orig = On.FezEngine.Tools.SharedContentManager.orig_GetCleanPath;
+using OpenStream_orig = On.FezEngine.Tools.MemoryContentManager.orig_OpenStream;
+using GetCue_orig = On.FezEngine.Services.SoundManager.orig_GetCue;
+using System.Collections;
 
 namespace HatModLoader.Installers
 {
     internal class AssetManagementInstaller : IHatInstaller
     {
-        public static IDetour CMProviderCtorDetour;
-        public static IDetour SMInitializeLibraryDetour;
-
         public void Install()
         {
-            CMProviderCtorDetour = new Hook(
-                typeof(ContentManagerProvider).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null,
-                CallingConventions.HasThis, new Type[] { typeof(Game) }, null),
-                new Action<Action<ContentManagerProvider, Game>, ContentManagerProvider, Game>((orig, self, game) => {
-                    orig(self, game);
-                    InjectAssets(self);
-                })
-            );
+            On.FezEngine.Tools.SharedContentManager.GetCleanPath += OnGetCleanPath;
+            On.FezEngine.Tools.MemoryContentManager.OpenStream += OnOpenStream;
+            On.FezEngine.Services.SoundManager.GetCue += OnGetCue;
 
-            SMInitializeLibraryDetour = new Hook(
-                typeof(SoundManager).GetMethod("InitializeLibrary"),
-                new Action<Action<SoundManager>, SoundManager>((orig, self) => {
-                    orig(self);
-                    InjectMusic(self);
-                })
-            );
         }
         public void Uninstall()
         {
-            CMProviderCtorDetour.Dispose();
-            SMInitializeLibraryDetour.Dispose();
+            On.FezEngine.Tools.SharedContentManager.GetCleanPath -= OnGetCleanPath;
+            On.FezEngine.Tools.MemoryContentManager.OpenStream -= OnOpenStream;
+            On.FezEngine.Services.SoundManager.GetCue -= OnGetCue;
         }
 
-        private static void InjectAssets(ContentManagerProvider CMProvider)
+        private string OnGetCleanPath(GetCleanPath_orig orig, string path)
         {
-            var cachedAssetsField = typeof(MemoryContentManager).GetField("cachedAssets", BindingFlags.NonPublic | BindingFlags.Static);
-            var cachedAssets = cachedAssetsField.GetValue(null) as Dictionary<string, byte[]>;
-
-            foreach(var asset in Hat.Instance.GetFullAssetList())
-            {
-                if (asset.IsMusicFile) continue;
-                cachedAssets[asset.AssetPath] = asset.Data;
-            }
-
-            Logger.Log("HAT", "Asset injection completed!");
+            ClearCommonContentManagerReferences();
+            return orig(path);
         }
 
-        private static void InjectMusic(SoundManager soundManager)
+        private Stream OnOpenStream(OpenStream_orig orig, MemoryContentManager self, string assetName)
+        {
+            var asset = TryGetModdedAsset(assetName);
+
+            if (asset != null)
+            {
+                return new MemoryStream(asset.Data, 0, asset.Data.Length);
+            }
+            else
+            {
+                return orig(self, assetName);
+            }
+        }
+
+        private OggStream OnGetCue(GetCue_orig orig, SoundManager self, string name, bool asyncPrecache)
         {
             var musicCacheField = typeof(SoundManager).GetField("MusicCache", BindingFlags.NonPublic | BindingFlags.Instance);
-            var musicCache = musicCacheField.GetValue(soundManager) as Dictionary<string, byte[]>;
+            var musicCache = musicCacheField.GetValue(self) as Dictionary<string, byte[]>;
 
-            foreach (var asset in Hat.Instance.GetFullAssetList())
+            bool hadOldCache = musicCache.TryGetValue(name, out var oldCache);
+
+            var asset = TryGetModdedAsset(name);
+            if(asset != null && asset.IsMusicFile)
             {
-                if (!asset.IsMusicFile) continue;
-                musicCache[asset.AssetPath] = asset.Data;
+                musicCache[name] = asset.Data;
             }
 
-            Logger.Log("HAT", "Music injection completed!");
+            var stream = orig(self, name, asyncPrecache);
+
+            if (hadOldCache)
+            {
+                musicCache[name] = oldCache;
+            }
+
+            return stream;
         }
 
+
+        private void ClearCommonContentManagerReferences()
+        {
+            var CommonField = typeof(SharedContentManager).GetField("Common", BindingFlags.NonPublic | BindingFlags.Static);
+            var Common = CommonField.GetValue(null);
+            var referencesField = Common.GetType().GetField("references", BindingFlags.Instance | BindingFlags.NonPublic);
+            var references = referencesField.GetValue(Common) as IDictionary;
+
+            references?.Clear();
+        }
+
+        private Asset TryGetModdedAsset(string assetName)
+        {
+            var assetProviders = Hat.Instance.GetAllAssetProviders();
+
+            foreach(var provider in assetProviders)
+            {
+                var asset = provider.LoadAsset(assetName);
+                if(asset != null)
+                {
+                    return asset;
+                }
+            }
+
+            return null;
+        }
     }
 }

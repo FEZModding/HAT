@@ -1,5 +1,6 @@
 ﻿using Common;
 using FezGame;
+using HatModLoader.Source.Assets;
 using static HatModLoader.Source.Mod;
 
 namespace HatModLoader.Source
@@ -119,7 +120,7 @@ namespace HatModLoader.Source
                     var componentsText = $"{mod.Components.Count} component{(mod.Components.Count != 1 ? "s" : "")}";
                     libraryInfo = $"library \"{mod.Info.LibraryName}\" ({componentsText})";
                 }
-                var assetsText = $"{mod.Assets.Count} asset{(mod.Assets.Count != 1 ? "s" : "")}";
+                var assetsText = $"{mod.AssetProviders.Count} asset source{(mod.AssetProviders.Count != 1 ? "s" : "")}";
                 Logger.Log("HAT", $"Loaded mod \"{mod.Info.Name}\" ver. {mod.Info.Version} by {mod.Info.Author} ({assetsText} and {libraryInfo})");
             }
             else
@@ -257,14 +258,16 @@ namespace HatModLoader.Source
             Logger.Log("HAT", "Assembly initialization completed!");
         }
 
-        public List<Asset> GetFullAssetList()
+        public List<AssetProvider> GetAllAssetProviders()
         {
-            var list = new List<Asset>();
+            var list = new List<AssetProvider>();
 
             foreach (var mod in Mods)
             {
-                list.AddRange(mod.Assets);
+                list.AddRange(mod.AssetProviders);
             }
+
+            list.Reverse();
 
             return list;
         }
