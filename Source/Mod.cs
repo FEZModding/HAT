@@ -282,6 +282,8 @@ namespace HatModLoader.Source
 
         private void AddSourceAsProviderIfValid(FileSourceProxy source)
         {
+            source.Precache();
+
             if (source.IsValid())
             {
                 AssetProviders.Add(new AssetProvider(source));

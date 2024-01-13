@@ -1,33 +1,68 @@
-﻿using FEZRepacker.Converter.FileSystem;
+﻿using Common;
+using FEZRepacker.Converter.FileSystem;
+using System;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace HatModLoader.Source.Assets
 {
     internal class DirectorySourceProxy : FileSourceProxy
     {
-
+        private Dictionary<string, string> assetPathCache = new();
         private Dictionary<string, FileInfo> cachedFileInfos = new();
 
         private readonly string rootDirectory;
         public DirectorySourceProxy(string rootDirectory)
         {
+            rootDirectory = rootDirectory.Replace("/", "\\");
+            if (!rootDirectory.EndsWith("\\")) rootDirectory += "\\";
             this.rootDirectory = rootDirectory;
         }
 
-        private void ClearCacheForAsset(string assetPath)
+        private void ReloadInfoCacheForAsset(string assetPath)
         {
-            foreach(var path in cachedFileInfos.Keys)
+            var filePath = assetPathCache[assetPath];
+
+            if (File.Exists(filePath))
             {
-                if (path.StartsWith(assetPath))
-                {
-                    cachedFileInfos.Remove(path);
-                }
+                cachedFileInfos[assetPath] = new FileInfo(filePath);
+            }
+            else 
+            {
+                cachedFileInfos.Remove(assetPath);
             }
         }
 
-        public bool FileChanged(string filePath)
+        public void Precache()
         {
-            if(File.Exists(filePath) != cachedFileInfos.ContainsKey(filePath))
+            if(!IsValid()) return;
+
+            assetPathCache.Clear();
+
+            foreach (var path in Directory.EnumerateFiles(rootDirectory, "*", SearchOption.AllDirectories))
+            {
+                var relativePath = path.Substring(rootDirectory.Length);
+                var assetPath = AssetProvider.CleanUpAssetPath(relativePath);
+                assetPathCache[assetPath] = path;
+            }
+        }
+
+        public bool IsValid()
+        {
+            return Directory.Exists(rootDirectory);
+        }
+
+        public HashSet<string> GetFileList()
+        {
+            if (!IsValid()) return new();
+
+            return new(assetPathCache.Keys);
+        }
+        public bool FileChanged(string assetPath)
+        {
+            var filePath = assetPathCache[assetPath];
+
+            if (File.Exists(filePath) != cachedFileInfos.ContainsKey(filePath))
             {
                 return true;
             }
@@ -40,51 +75,21 @@ namespace HatModLoader.Source.Assets
                 fileInfo.Length != cachedFileInfo.Length;
         }
 
-        public HashSet<string> GetFilePathsByAssetPath(string assetName)
+        public Dictionary<string, Stream> OpenFilesAndMarkUnchanged(HashSet<string> assetPaths)
         {
-            var paths = new HashSet<string>();
-            if (!IsValid()) return paths;
+            var streams = new Dictionary<string, Stream>();
 
-            foreach(var path in Directory.EnumerateFiles(rootDirectory, "*", SearchOption.AllDirectories))
+            foreach(var assetPath in assetPaths)
             {
-                var relativePath = path.Replace("/", "\\").Substring(rootDirectory.Length + 1);
-                if(relativePath.StartsWith(assetName, StringComparison.OrdinalIgnoreCase))
-                {
-                    paths.Add(relativePath);
-                }
-            }
+                ReloadInfoCacheForAsset(assetPath);
 
-            return paths;
-        }
-
-        public FileBundle ReadFileBundle(string assetName)
-        {
-            ClearCacheForAsset(assetName);
-
-            var filePaths = GetFilePathsByAssetPath(assetName);
-
-            if(filePaths.Count == 0)
-            {
-                return null;
-            }
-
-            var files = new Dictionary<string, Stream>();
-
-            foreach (var path in filePaths)
-            {
-                var filePath = Path.Combine(rootDirectory, path);
+                var filePath = assetPathCache[assetPath];
                 var stream = File.OpenRead(filePath);
-                files.Add(path, stream);
 
-                cachedFileInfos.Add(path, new FileInfo(filePath));
+                streams[assetPath] = stream;
             }
 
-            return FileBundle.BundleFiles(files).First();
-        }
-
-        public bool IsValid()
-        {
-            return Directory.Exists(rootDirectory);
+            return streams;
         }
     }
 }

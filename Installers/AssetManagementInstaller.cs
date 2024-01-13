@@ -38,11 +38,9 @@ namespace HatModLoader.Installers
 
         private Stream OnOpenStream(OpenStream_orig orig, MemoryContentManager self, string assetName)
         {
-            var asset = TryGetModdedAsset(assetName);
-
-            if (asset != null)
+            if (TryGetModdedAsset(assetName, out var asset))
             {
-                return new MemoryStream(asset.Data, 0, asset.Data.Length);
+                return new MemoryStream(asset.Data, 0, asset.Data.Length, false, true);
             }
             else
             {
@@ -57,8 +55,7 @@ namespace HatModLoader.Installers
 
             bool hadOldCache = musicCache.TryGetValue(name, out var oldCache);
 
-            var asset = TryGetModdedAsset(name);
-            if(asset != null && asset.IsMusicFile)
+            if(TryGetModdedAsset(name, out var asset) && asset.IsMusicFile)
             {
                 musicCache[name] = asset.Data;
             }
@@ -84,20 +81,20 @@ namespace HatModLoader.Installers
             references?.Clear();
         }
 
-        private Asset TryGetModdedAsset(string assetName)
+        private bool TryGetModdedAsset(string assetName, out Asset asset)
         {
             var assetProviders = Hat.Instance.GetAllAssetProviders();
 
-            foreach(var provider in assetProviders)
+            foreach (var provider in assetProviders)
             {
-                var asset = provider.LoadAsset(assetName);
-                if(asset != null)
+                if (provider.TryLoadAsset(assetName, out asset))
                 {
-                    return asset;
+                    return true;
                 }
             }
 
-            return null;
+            asset = null;
+            return false;
         }
     }
 }

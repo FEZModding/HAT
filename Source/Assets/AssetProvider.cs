@@ -1,4 +1,5 @@
-﻿using FEZRepacker.Converter.FileSystem;
+﻿using Common;
+using FEZRepacker.Converter.FileSystem;
 using FEZRepacker.Converter.XNB;
 
 namespace HatModLoader.Source.Assets
@@ -25,34 +26,50 @@ namespace HatModLoader.Source.Assets
         private Asset FileBundleToAsset(FileBundle bundle)
         {
             var deconverter = new XnbDeconverter();
-
             using var deconverterStream = deconverter.Deconvert(bundle);
+            return new Asset(bundle.BundlePath, ".xnb", deconverterStream);
+        }
 
-            if (deconverter.Converted)
-            {
-                return new Asset(bundle.BundlePath, ".xnb", deconverterStream);
-            }
-            else
-            {
-                var file = bundle.Files.Last();
-                return new Asset(bundle.BundlePath, bundle.MainExtension + file.Extension, file.Data);
-            }
+        private HashSet<string> GetFilePathsByAssetPath(string assetPath)
+        {
+            return new(source.GetFileList().Where(path => path.StartsWith(assetPath)));
         }
 
         private bool AssetModified(AssetRecord asset)
         {
-            if (asset.UsedFilesPaths.Any(path => source.FileChanged(path))) return true;
-
-            var currentAssetFiles = source.GetFilePathsByAssetPath(asset.Path);
+            var currentAssetFiles = GetFilePathsByAssetPath(asset.Path);
             if (!currentAssetFiles.SetEquals(asset.UsedFilesPaths)) return true;
+
+            if (asset.UsedFilesPaths.Any(path => source.FileChanged(path))) return true;
 
             return false;
         }
-        private Asset LoadAssetFromSource(string path)
+
+        private bool TryLoadFileBundleFromSource(string assetPath, out FileBundle bundle)
         {
-            var bundle = source.ReadFileBundle(path);
-            if (bundle == null) return null;
-            var asset = FileBundleToAsset(bundle);
+            var fileNames = GetFilePathsByAssetPath(assetPath);
+
+            if (fileNames.Count == 0)
+            {
+                bundle = null;
+                return false;
+            }
+
+            var filesToBundle = source.OpenFilesAndMarkUnchanged(fileNames);
+            bundle = FileBundle.BundleFiles(filesToBundle).Last();
+
+            return true;
+        }
+
+
+        private bool TryLoadAssetFromSource(string path, out Asset asset)
+        {
+            if (!TryLoadFileBundleFromSource(path, out var bundle))
+            {
+                asset = null;
+                return false;
+            }
+            asset = FileBundleToAsset(bundle);
 
             var usedFilePaths = bundle.Files
                 .Select(file => bundle.BundlePath + bundle.MainExtension + file.Extension);
@@ -64,21 +81,36 @@ namespace HatModLoader.Source.Assets
                 UsedFilesPaths = new(usedFilePaths)
             };
 
-            return asset;
+            return true;
         }
 
-        public Asset LoadAsset(string path)
+        public bool TryLoadAsset(string path, out Asset asset)
         {
+            source.Precache();
+            if(!source.IsValid())
+            {
+                asset = null;
+                return false;
+            }
+
+            path = CleanUpAssetPath(path);
+
+
             if (assetCache.ContainsKey(path))
             {
                 var assetRecord = assetCache[path];
                 if (!AssetModified(assetRecord))
                 {
-                    return assetRecord.Asset;
+                    asset = assetRecord.Asset;
+                    return true;
                 }
             }
             
-            return LoadAssetFromSource(path);
+            return TryLoadAssetFromSource(path, out asset);
+        }
+        public static string CleanUpAssetPath(string path)
+        {
+            return path.Replace('/', '\\').ToLower();
         }
     }
 }

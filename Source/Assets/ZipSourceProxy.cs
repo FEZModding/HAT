@@ -11,17 +11,20 @@ namespace HatModLoader.Source.Assets
 
         private FileInfo lastZipState;
         private HashSet<string> filesUpToDateCache = new();
-        private HashSet<string> cachedZipPaths = new();
+        private Dictionary<string, string> cachedZipPaths = new();
 
         public ZipSourceProxy(string zipPath, string rootDirectory)
         {
             this.zipPath = zipPath;
+
+            rootDirectory = rootDirectory.Replace("/", "\\");
+            if (!rootDirectory.EndsWith("\\")) rootDirectory += "\\";
             this.rootDirectory = rootDirectory;
 
             lastZipState = null;
         }
 
-        private void RecacheZipFile()
+        private void RecacheZipFileContent()
         {
             filesUpToDateCache.Clear();
             cachedZipPaths.Clear();
@@ -34,76 +37,61 @@ namespace HatModLoader.Source.Assets
             using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Read);
             foreach (var zipEntry in archive.Entries)
             {
-                if (zipEntry.FullName.StartsWith(rootDirectory, StringComparison.OrdinalIgnoreCase))
+                var fileName = zipEntry.FullName;
+                if (fileName.StartsWith(rootDirectory, StringComparison.OrdinalIgnoreCase))
                 {
-                    var relativePath = zipEntry.FullName.Substring(rootDirectory.Length + 1).Replace("/", "\\");
-                    cachedZipPaths.Add(relativePath);
+                    var relativePath = fileName.Substring(rootDirectory.Length);
+                    var assetPath = AssetProvider.CleanUpAssetPath(relativePath);
+                    cachedZipPaths[fileName] = assetPath;
                 }
             }
         }
 
-        private void CheckZipFileState()
+        public void Precache()
         {
             var zipState = new FileInfo(zipPath);
             if (zipState != lastZipState)
             {
                 lastZipState = zipState;
-                RecacheZipFile();
+                RecacheZipFileContent();
             }
         }
 
         public bool FileChanged(string filePath)
         {
-            CheckZipFileState();
             return filesUpToDateCache.Contains(filePath);
         }
 
-        public HashSet<string> GetFilePathsByAssetPath(string assetName)
+        public bool IsValid()
         {
-            CheckZipFileState();
-            return new(cachedZipPaths.Where(path => path.StartsWith(assetName)));
+            return filesUpToDateCache.Count > 0;
         }
 
-        public FileBundle ReadFileBundle(string assetName)
+        public HashSet<string> GetFileList()
         {
-            filesUpToDateCache.Remove(assetName);
+            return new(cachedZipPaths.Values);
+        }
 
-            var filePaths = GetFilePathsByAssetPath(assetName);
-
-            if (filePaths.Count == 0)
-            {
-                return null;
-            }
-
+        public Dictionary<string, Stream> OpenFilesAndMarkUnchanged(HashSet<string> filePaths)
+        {
             var files = new Dictionary<string, Stream>();
 
             using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Read);
 
-            foreach (var zipEntry in archive.Entries)
+            foreach(var zipEntry in archive.Entries)
             {
-                if (zipEntry.FullName.StartsWith(rootDirectory, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+                var assetPath = cachedZipPaths[zipEntry.FullName];
 
-                var relativePath = zipEntry.FullName.Substring(rootDirectory.Length + 1).Replace("/", "\\");
-
-                if (!filePaths.Contains(relativePath))
+                if (!filePaths.Contains(assetPath))
                 {
                     continue;
                 }
 
                 var zipFileStream = zipEntry.Open();
-                files.Add(relativePath, zipFileStream);
+                files.Add(assetPath, zipFileStream);
             }
 
-            return FileBundle.BundleFiles(files).First();
-        }
-
-        public bool IsValid()
-        {
-            CheckZipFileState();
-            return filesUpToDateCache.Count > 0;
+            return files;
         }
     }
 }
