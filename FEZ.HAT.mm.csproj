@@ -28,21 +28,6 @@
     <Error Text="You forgot to edit UserProperties.xml." Condition="$(UserPropertiesNotSetUp) == True" />
   </Target>
 
-  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.mm.dll')">
-    <ItemGroup>
-      <HookBinaries Include="FEZ.exe" />
-      <HookBinaries Include="FezEngine.dll" />
-      <HookBinaries Include="FNA.dll" />
-    </ItemGroup>
-    <Exec Command="&quot;$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe&quot; &quot;$(FezDir)\%(HookBinaries.Identity)&quot; &quot;$(TargetDir)MMHOOK_%(HookBinaries.Identity)&quot;" WorkingDirectory="$(MonoModDir)" />
-    
-    <ItemGroup>
-      <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)" />
-    </ItemGroup>
-    <ILRepack Parallel="True" InputAssemblies="@(GeneratedHookBinaries)" TargetKind="Dll" OutputFile="$(TargetDir)FEZ.Hooks.mm.dll" />
-    <Delete Files="@(GeneratedHookBinaries)" />
-  </Target>
-
   <Target Name="PrepareHat" AfterTargets="Build">
     <ItemGroup>
       <SourceFiles Include="$(TargetDir)$(TargetName).dll" />
@@ -55,7 +40,10 @@
   <!-- Dependencies -->
 
   <ItemGroup>
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2" />
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.26">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>

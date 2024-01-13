@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.mm.dll')">
+    
+    <ItemGroup>
+      <HookBinaries Include="FEZ.exe" />
+      <HookBinaries Include="FezEngine.dll" />
+      <HookBinaries Include="FNA.dll" />
+    </ItemGroup>
+    
+    <Exec Command='"$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' WorkingDirectory="$(MonoModDir)" />
+
+    <ItemGroup>
+      <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)"/>
+    </ItemGroup>
+
+    <ILRepack 
+      Parallel = "True" 
+      InputAssemblies = "@(GeneratedHookBinaries)" 
+      TargetKind = "Dll" 
+      OutputFile = "$(TargetDir)FEZ.Hooks.mm.dll" />
+
+    <Delete Files="@(GeneratedHookBinaries)" />
+  </Target>
+
+</Project>
