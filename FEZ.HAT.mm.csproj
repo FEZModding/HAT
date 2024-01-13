@@ -28,41 +28,22 @@
     <Error Text="You forgot to edit UserProperties.xml." Condition="$(UserPropertiesNotSetUp) == True" />
   </Target>
 
-  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.mm.dll')">
-    <ItemGroup>
-      <HookBinaries Include="FEZ.exe" />
-      <HookBinaries Include="FezEngine.dll" />
-      <HookBinaries Include="FNA.dll" />
-    </ItemGroup>
-    <Exec Command='"$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' WorkingDirectory="$(MonoModDir)" />
-    
-    <ItemGroup>
-      <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)"/>
-    </ItemGroup>
-    <ILRepack
-      Parallel = "True"
-      InputAssemblies = "@(GeneratedHookBinaries)"
-      TargetKind = "Dll"
-      OutputFile = "$(TargetDir)FEZ.Hooks.mm.dll"
-    />
-    <Delete Files="@(GeneratedHookBinaries)"/>
-  </Target>
-
   <Target Name="PrepareHat" AfterTargets="Build">
     <ItemGroup>
       <SourceFiles Include="$(TargetDir)$(TargetName).dll" />
       <SourceFiles Include="$(TargetDir)$(TargetName).pdb" />
       <SourceFiles Include="$(TargetDir)FEZ.Hooks.mm.dll" />
     </ItemGroup>
-    <Copy Condition="$(CopyOverHATToFez) == True" 
-          SourceFiles="@(SourceFiles)" 
-          DestinationFolder="$(FezDir)\" Retries="0" />
+    <Copy Condition="$(CopyOverHATToFez) == True" SourceFiles="@(SourceFiles)" DestinationFolder="$(FezDir)\" Retries="0" />
   </Target>
 
   <!-- Dependencies -->
 
   <ItemGroup>
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2" />
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.26">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
