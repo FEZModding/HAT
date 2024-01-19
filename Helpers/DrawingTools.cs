@@ -66,6 +66,7 @@ namespace HatModLoader.Helpers
 
         public static void DrawText(string text, Vector2 position, float rotation, float scale, Vector2 origin, Color color)
         {
+            scale *= FontManager.BigFactor / 2f;
             Batch.DrawString(DefaultFont, text, position, color,
                 rotation, origin, scale, SpriteEffects.None, 0f
             );
