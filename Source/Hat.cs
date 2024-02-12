@@ -16,7 +16,7 @@ namespace HatModLoader.Source
         {
             get
             {
-                const string version = "1.1.0";
+                const string version = "1.1.1";
 #if DEBUG
                 return $"{version}-dev";
 #else
