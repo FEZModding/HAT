@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.mm.dll')">
+  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.dll')">
     
     <ItemGroup>
       <HookBinaries Include="FEZ.exe" />
@@ -19,7 +19,7 @@
       Parallel = "True" 
       InputAssemblies = "@(GeneratedHookBinaries)" 
       TargetKind = "Dll" 
-      OutputFile = "$(TargetDir)FEZ.Hooks.mm.dll" />
+      OutputFile = "$(TargetDir)FEZ.Hooks.dll" />
 
     <Delete Files="@(GeneratedHookBinaries)" />
   </Target>

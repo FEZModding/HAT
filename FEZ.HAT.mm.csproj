@@ -32,7 +32,7 @@
     <ItemGroup>
       <SourceFiles Include="$(TargetDir)$(TargetName).dll" />
       <SourceFiles Include="$(TargetDir)$(TargetName).pdb" />
-      <SourceFiles Include="$(TargetDir)FEZ.Hooks.mm.dll" />
+      <SourceFiles Include="$(TargetDir)FEZ.Hooks.dll" />
     </ItemGroup>
     <Copy Condition="$(CopyOverHATToFez) == True" SourceFiles="@(SourceFiles)" DestinationFolder="$(FezDir)\" Retries="0" />
   </Target>
@@ -86,10 +86,6 @@
     </Reference>
     <Reference Include="MonoMod.Utils">
       <HintPath>$(MonoModDir)\MonoMod.Utils.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="FEZ.Hooks.mm">
-      <HintPath>$(TargetDir)FEZ.Hooks.mm.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
