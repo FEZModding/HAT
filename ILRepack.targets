@@ -1,27 +1,45 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.dll')">
+  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)Packed\FEZ.Hooks.dll')">
     
+    <MakeDir Directories="$(TargetDir)Packed\"/>
+
     <ItemGroup>
       <HookBinaries Include="FEZ.exe" />
       <HookBinaries Include="FezEngine.dll" />
       <HookBinaries Include="FNA.dll" />
     </ItemGroup>
     
-    <Exec Command='"$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' WorkingDirectory="$(MonoModDir)" />
+    <Exec Command='"$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)Packed\MMHOOK_%(HookBinaries.Identity)"' WorkingDirectory="$(MonoModDir)" />
 
     <ItemGroup>
-      <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)"/>
+      <GeneratedHookBinaries Include="$(TargetDir)Packed\MMHOOK_%(HookBinaries.Identity)"/>
     </ItemGroup>
 
     <ILRepack 
       Parallel = "True" 
       InputAssemblies = "@(GeneratedHookBinaries)" 
       TargetKind = "Dll" 
-      OutputFile = "$(TargetDir)FEZ.Hooks.dll" />
+      OutputFile = "$(TargetDir)Packed\FEZ.Hooks.dll" />
 
     <Delete Files="@(GeneratedHookBinaries)" />
+  </Target>
+
+  <!--Packing all assemblies other than HAT as Repacker, because for whatever reason the game freaks out when it's not done-->
+  <!--Also in the future Repacker might not be the only dependency, so keep in mind this sucks and needs to be changed-->
+  <Target Name="RepackerRepack" BeforeTargets="PrepareHat">
+    <ItemGroup>
+        <InputAssemblies Include="$(OutputPath)FEZRepacker.Core.dll"/>
+        <InputAssemblies Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(TargetName)$(TargetExt);$(OutputPath)FEZRepacker.Core.dll"/>
+    </ItemGroup>
+
+    <ILRepack
+            Parallel="true"
+            InputAssemblies="@(InputAssemblies)"
+            TargetKind="SameAsPrimaryAssembly"
+            OutputFile="$(TargetDir)Packed\FEZRepacker.Core.dll"
+    />
   </Target>
 
 </Project>
