@@ -1,5 +1,6 @@
-﻿using FEZRepacker.Converter.FileSystem;
-using FEZRepacker.Converter.XNB;
+﻿using FEZRepacker.Core.Conversion;
+using FEZRepacker.Core.FileSystem;
+using FEZRepacker.Core.XNB;
 using System.IO.Compression;
 
 namespace HatModLoader.Source
@@ -77,15 +78,14 @@ namespace HatModLoader.Source
 
             foreach(var bundle in bundles)
             {
-                var deconverter = new XnbDeconverter();
-
-                using var deconverterStream = deconverter.Deconvert(bundle);
-
-                if (deconverter.Converted)
+                try
                 {
-                    assets.Add(new Asset(bundle.BundlePath, ".xnb", deconverterStream));
+                    var deconvertedObject = FormatConversion.Deconvert(bundle)!;
+                    using var xnbData = XnbSerializer.Serialize(deconvertedObject);
+
+                    assets.Add(new Asset(bundle.BundlePath, ".xnb", xnbData));
                 }
-                else
+                catch
                 {
                     foreach (var file in bundle.Files)
                     {

@@ -40,6 +40,7 @@
   <!-- Dependencies -->
 
   <ItemGroup>
+    <PackageReference Include="FEZRepacker.Core" Version="1.1.0" />
     <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.26">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -75,7 +76,7 @@
       <HintPath>$(FezDir)\XnaWordWrapCore.dll</HintPath>
       <Private>False</Private>
     </Reference>
-        <Reference Include="MonoMod">
+    <Reference Include="MonoMod">
       <HintPath>$(MonoModDir)\MonoMod.exe</HintPath>
       <Private>False</Private>
     </Reference>
@@ -91,10 +92,5 @@
       <HintPath>$(TargetDir)FEZ.Hooks.mm.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="FEZRepacker.Core">
-      <HintPath>$(FezDir)\FEZRepacker.Core.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
   </ItemGroup>
-
 </Project>
