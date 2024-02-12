@@ -11,8 +11,7 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 ## Installing mod loader
 
 1. Download [MonoMod](https://github.com/MonoMod/MonoMod/releases) (for .NET 4.5.2) and unpack it in the game's directory.
-2. Download latest `FEZRepacker.Core.dll` from [FEZRepacker's repository](https://github.com/FEZModding/FEZRepacker/releases).
-3. Download latest `FEZ.HAT.mm.dll` from Release tab and put it in the game's directory.
+3. Download latest `FEZ.zip` from Release tab and unpack it in the game's directory (all contained DLL files should be in the same directory as `FEZ.exe`)
 4. Run command `MonoMod.exe FEZ.exe` (or drag `FEZ.exe` onto `MonoMod.exe`). This should generate new executable file called `MONOMODDED_FEZ.exe`.
 5. Run `MONOMODDED_FEZ.exe` and enjoy modding!
 
