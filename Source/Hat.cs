@@ -1,6 +1,5 @@
 ﻿using Common;
 using FezGame;
-using static HatModLoader.Source.Mod;
 
 namespace HatModLoader.Source
 {
@@ -50,7 +49,7 @@ namespace HatModLoader.Source
                 return;
             }
 
-            RemoveDuplicates();
+            RemoveOlderDuplicates();
             InitializeDependencies();
             FilterOutInvalidMods();
             SortModsBasedOnDependencies();
@@ -86,27 +85,33 @@ namespace HatModLoader.Source
         {
             EnsureModDirectory();
 
-            // load mods in directories
-            foreach (var modDir in Mod.GetModDirectories())
-            {
-                bool loadingState = Mod.TryLoadFromDirectory(this, modDir, out Mod mod);
-                if (loadingState)
-                {
-                    Mods.Add(mod);
-                }
-                LogModLoadingState(mod, loadingState);
-            }
+            var modLoaders = PrepareModLoaders();
 
-            // load mods packed into archives
-            foreach (var modZip in Mod.GetModArchives())
+            foreach (var modLoader in modLoaders)
             {
-                bool loadingState = Mod.TryLoadFromZip(this, modZip, out Mod mod);
+                bool loadingState = Mod.TryLoad(this, modLoader, out Mod mod);
                 if (loadingState)
                 {
                     Mods.Add(mod);
                 }
                 LogModLoadingState(mod, loadingState);
             }
+        }
+
+        private static List<IModLoader> PrepareModLoaders()
+        {
+            var modList = new List<IModLoader>();
+
+            var directoryBasedMods = Directory.GetDirectories(Mod.ModsDirectoryName)
+                .Select(path => new DirectoryModLoader(path));
+            modList.AddRange(directoryBasedMods);
+
+            var zipBasedMods = Directory.GetFiles(Mod.ModsDirectoryName)
+                .Where(file => Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+                .Select(file => new ZipModLoader(file));
+            modList.AddRange(zipBasedMods);
+
+            return modList;
         }
 
         private void LogModLoadingState(Mod mod, bool loadState)
@@ -124,7 +129,7 @@ namespace HatModLoader.Source
             }
             else
             {
-                string containerType = mod.IsZip ? "directory" : "archive";
+                string containerType = mod.IsZip ? "archive" : "directory";
                 if (mod.Info.Name == null)
                 {
                     Logger.Log("HAT", LogSeverity.Warning, $"Mod {containerType} \"{mod.DirectoryName}\" does not have a valid metadata file.");
@@ -141,8 +146,7 @@ namespace HatModLoader.Source
             }
         }
 
-        // filter out mod duplicates (mods having the same ID/name) and leave out only the newest 
-        private void RemoveDuplicates()
+        private void RemoveOlderDuplicates()
         {
             var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
             foreach (var modName in uniqueNames)
@@ -202,36 +206,21 @@ namespace HatModLoader.Source
             InvalidMods = Mods.Where(mod => !mod.AreDependenciesValid()).ToList();
             foreach (var invalidMod in InvalidMods)
             {
-                var delegateIssues = invalidMod.Dependencies
-                    .Where(dep=>dep.Status != DependencyStatus.Valid)
-                    .Select(delegate (Dependency dependency)
-                    {
-                        string issue = "unknown";
-                        switch (dependency.Status)
-                        {
-                            case DependencyStatus.InvalidVersion:
-                                issue = $"needs version >={dependency.Info.MinimumVersion}, found {dependency.DetectedVersion}";
-                                break;
-                            case DependencyStatus.InvalidNotFound:
-                                issue = $"not found";
-                                break;
-                            case DependencyStatus.InvalidRecursive:
-                                issue = $"recursive dependency - consider merging mods or separating it into modules";
-                                break;
-                            case DependencyStatus.InvalidDependencyTree:
-                                issue = $"couldn't load its own dependencies";
-                                break;
-                        }
-
-                        return $"{dependency.Info.Name} ({issue})";
-                    }).ToList();
-
-                string error = $"Dependency issues in mod {invalidMod.Info.Name} found: {string.Join(", ", delegateIssues)}";
-
-                Logger.Log("HAT", LogSeverity.Warning, error);
-
+                LogIssuesWithInvalidMod(invalidMod);
                 Mods.Remove(invalidMod);
             }
+        }
+
+        private void LogIssuesWithInvalidMod(Mod invalidMod)
+        {
+            var delegateIssues = invalidMod.Dependencies
+                    .Where(dep => dep.Status != ModDependencyStatus.Valid)
+                    .Select(dependency => $"{dependency.Info.Name} ({dependency.GetStatusString()})")
+                    .ToList();
+
+            string error = $"Dependency issues in mod {invalidMod.Info.Name} found: {string.Join(", ", delegateIssues)}";
+
+            Logger.Log("HAT", LogSeverity.Warning, error);
         }
 
         public void SortModsBasedOnDependencies()
