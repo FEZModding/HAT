@@ -15,11 +15,12 @@ namespace HatModLoader.Source.ModDefinition
         public string LibraryName;
         public ModDependencyInfo[] Dependencies;
 
-        public static bool TryLoadFrom(StreamReader reader, out ModMetadata metadata)
+        public static bool TryLoadFrom(Stream stream, out ModMetadata metadata)
         {
             try
             {
                 var serializer = new XmlSerializer(typeof(ModMetadata));
+                using var reader = new StreamReader(stream);
                 metadata = (ModMetadata)serializer.Deserialize(reader);
 
                 if (metadata.Name == null || metadata.Name.Length == 0) return false;

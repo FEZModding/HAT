@@ -1,6 +1,6 @@
 ﻿using FezEngine.Tools;
 using HatModLoader.Source.Assets;
-using HatModLoader.Source.ModLoaders;
+using HatModLoader.Source.FileProxies;
 using Microsoft.Xna.Framework;
 using System.Reflection;
 
@@ -18,16 +18,15 @@ namespace HatModLoader.Source.ModDefinition
         public byte[] RawAssembly { get; private set; }
         public Assembly Assembly { get; private set; }
         public ModMetadata Info { get; private set; }
-        public string DirectoryName { get; private set; }
+        public IFileProxy FileProxy { get; private set; }
         public List<ModDependency> Dependencies { get; private set; }
-        public bool IsZip { get; private set; }
         public List<Asset> Assets { get; private set; }
         public List<IGameComponent> Components { get; private set; }
 
         public bool IsAssetMod => Assets.Count > 0;
         public bool IsCodeMod => RawAssembly != null;
 
-        public Mod(Hat modLoader)
+        public Mod(Hat modLoader, IFileProxy fileProxy)
         {
             ModLoader = modLoader;
 
@@ -36,6 +35,7 @@ namespace HatModLoader.Source.ModDefinition
             Assets = new List<Asset>();
             Components = new List<IGameComponent>();
             Dependencies = new List<ModDependency>();
+            FileProxy = fileProxy;
         }
 
         public void InitializeComponents()
@@ -116,26 +116,14 @@ namespace HatModLoader.Source.ModDefinition
             return Dependencies.All(dependency => dependency.Status == ModDependencyStatus.Valid);
         }
 
-        public static bool TryLoad(Hat modLoader, IModLoader loader, out Mod mod)
+        public static bool TryLoad(Hat modLoader, IFileProxy fileProxy, out Mod mod)
         {
-            mod = new Mod(modLoader)
-            {
-                DirectoryName = loader.ResourcePath,
-                IsZip = loader is ZipModLoader
-            };
+            mod = new Mod(modLoader, fileProxy);
 
-            if (!loader.TryLoadMetadata(out var metadata))
-            {
-                return false;
-            }
+            if (!mod.TryLoadMetadata()) return false;
 
-            mod.Info = metadata;
-            mod.Assets = loader.LoadAssets();
-
-            if (mod.IsLibraryNameValid() && loader.TryLoadAssembly(mod.Info.LibraryName, out var assemblyData))
-            {
-                mod.RawAssembly = assemblyData;
-            }
+            mod.TryLoadAssets();
+            mod.TryLoadAssembly();
 
             return mod.IsAssetMod || mod.IsCodeMod;
         }
@@ -143,6 +131,53 @@ namespace HatModLoader.Source.ModDefinition
         public static string GetModsDirectory()
         {
             return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ModsDirectoryName);
+        }
+
+        private bool TryLoadMetadata()
+        {
+            if (!FileProxy.FileExists(ModMetadataFileName))
+            {
+                return false;
+            }
+
+            using var metadataStream = FileProxy.OpenFile(ModMetadataFileName);
+            if (!ModMetadata.TryLoadFrom(metadataStream, out var metadata))
+            {
+                return false;
+            }
+
+            Info = metadata;
+
+            return true;
+        }
+
+        private bool TryLoadAssets()
+        {
+            var files = new Dictionary<string, Stream>();
+
+            foreach (var filePath in FileProxy.EnumerateFiles(AssetsDirectoryName))
+            {
+                var relativePath = filePath.Substring(Mod.AssetsDirectoryName.Length + 1).Replace("/", "\\").ToLower();
+                var fileStream = FileProxy.OpenFile(filePath);
+                files.Add(relativePath, fileStream);
+            }
+
+            Assets = AssetLoaderHelper.GetListFromFileDictionary(files);
+
+            return Assets.Count > 0;
+        }
+
+        private bool TryLoadAssembly()
+        {
+            if(!IsLibraryNameValid()) return false;
+
+            if (!FileProxy.FileExists(Info.LibraryName)) return false;
+
+            using var assemblyStream = FileProxy.OpenFile(Info.LibraryName);
+            RawAssembly = new byte[assemblyStream.Length];
+            assemblyStream.Read(RawAssembly, 0, RawAssembly.Length);
+
+            return true;
         }
 
         private bool IsLibraryNameValid()

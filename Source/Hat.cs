@@ -1,10 +1,8 @@
 ﻿using Common;
 using FezGame;
 using HatModLoader.Source.Assets;
+using HatModLoader.Source.FileProxies;
 using HatModLoader.Source.ModDefinition;
-using HatModLoader.Source.ModLoaders;
-using Microsoft.Xna.Framework;
-using System.Reflection;
 
 namespace HatModLoader.Source
 {
@@ -91,11 +89,11 @@ namespace HatModLoader.Source
         {
             EnsureModDirectory();
 
-            var modLoaders = PrepareModLoaders();
+            var modProxies = EnumerateFileProxiesInModsDirectory();
 
-            foreach (var modLoader in modLoaders)
+            foreach (var proxy in modProxies)
             {
-                bool loadingState = Mod.TryLoad(this, modLoader, out Mod mod);
+                bool loadingState = Mod.TryLoad(this, proxy, out Mod mod);
                 if (loadingState)
                 {
                     Mods.Add(mod);
@@ -104,20 +102,16 @@ namespace HatModLoader.Source
             }
         }
 
-        private static List<IModLoader> PrepareModLoaders()
+        private static IEnumerable<IFileProxy> EnumerateFileProxiesInModsDirectory()
         {
-            var modList = new List<IModLoader>();
+            var modsDir = Mod.GetModsDirectory();
 
-            var directoryBasedMods = Directory.GetDirectories(Mod.ModsDirectoryName)
-                .Select(path => new DirectoryModLoader(path));
-            modList.AddRange(directoryBasedMods);
-
-            var zipBasedMods = Directory.GetFiles(Mod.ModsDirectoryName)
-                .Where(file => Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase))
-                .Select(file => new ZipModLoader(file));
-            modList.AddRange(zipBasedMods);
-
-            return modList;
+            return new IEnumerable<IFileProxy>[]
+            {
+                DirectoryFileProxy.EnumerateInDirectory(modsDir),
+                ZipFileProxy.EnumerateInDirectory(modsDir),
+            }
+            .SelectMany(x => x);
         }
 
         private void LogModLoadingState(Mod mod, bool loadState)
@@ -135,14 +129,13 @@ namespace HatModLoader.Source
             }
             else
             {
-                string containerType = mod.IsZip ? "archive" : "directory";
                 if (mod.Info.Name == null)
                 {
-                    Logger.Log("HAT", LogSeverity.Warning, $"Mod {containerType} \"{mod.DirectoryName}\" does not have a valid metadata file.");
+                    Logger.Log("HAT", LogSeverity.Warning, $"Mod \"{mod.FileProxy.ContainerName}\" does not have a valid metadata file.");
                 }
                 else if (mod.Info.LibraryName.Length > 0 && !mod.IsCodeMod)
                 {
-                    var info = $"Mod \"{mod.Info.Name}\" has library name defined (\"{mod.Info.LibraryName}\"), but no such library was found in mod {containerType}.";
+                    var info = $"Mod \"{mod.Info.Name}\" has library name defined (\"{mod.Info.LibraryName}\"), but no such library was found.";
                     Logger.Log("HAT", LogSeverity.Warning, info);
                 }
                 else if (!mod.IsCodeMod && !mod.IsAssetMod)
