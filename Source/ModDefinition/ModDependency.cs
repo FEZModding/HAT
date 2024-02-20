@@ -1,6 +1,6 @@
 ﻿using System.Linq;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Source.ModDefinition
 {
     [Serializable]
     public struct ModDependency
@@ -10,7 +10,7 @@ namespace HatModLoader.Source
         public ModDependencyStatus Status;
         public bool IsModLoaderDependency => Info.Name == "HAT";
         public bool IsFinalized => Status != ModDependencyStatus.None;
-        public string DetectedVersion => IsModLoaderDependency ? Hat.Version : (Instance != null ? Instance.Info.Version : null);
+        public string DetectedVersion => IsModLoaderDependency ? Hat.Version : Instance != null ? Instance.Info.Version : null;
 
 
         public ModDependency(ModDependencyInfo info, Mod instance)

@@ -1,9 +1,10 @@
 ﻿using FezEngine.Tools;
+using HatModLoader.Source.Assets;
+using HatModLoader.Source.ModLoaders;
 using Microsoft.Xna.Framework;
-using System.IO.Compression;
 using System.Reflection;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Source.ModDefinition
 {
     public class Mod : IDisposable
     {
@@ -36,7 +37,7 @@ namespace HatModLoader.Source
             Components = new List<IGameComponent>();
             Dependencies = new List<ModDependency>();
         }
-        
+
         public void InitializeComponents()
         {
             if (RawAssembly == null || Assembly == null) return;
@@ -67,7 +68,7 @@ namespace HatModLoader.Source
         {
             // TODO: dispose assets
 
-            foreach(var component in Components)
+            foreach (var component in Components)
             {
                 ServiceHelper.RemoveComponent(component);
             }
@@ -94,7 +95,7 @@ namespace HatModLoader.Source
 
         public bool TryFinalizeDependencies()
         {
-            foreach(var dependency in Dependencies)
+            foreach (var dependency in Dependencies)
             {
                 if (dependency.TryFinalize()) continue;
                 else return false;
@@ -120,10 +121,10 @@ namespace HatModLoader.Source
             mod = new Mod(modLoader)
             {
                 DirectoryName = loader.ResourcePath,
-                IsZip = (loader is ZipModLoader)
+                IsZip = loader is ZipModLoader
             };
 
-            if(!loader.TryLoadMetadata(out var metadata))
+            if (!loader.TryLoadMetadata(out var metadata))
             {
                 return false;
             }
@@ -147,7 +148,7 @@ namespace HatModLoader.Source
         private bool IsLibraryNameValid()
         {
             var libraryName = Info.LibraryName;
-            return (libraryName != null && libraryName.Length > 0 && libraryName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
+            return libraryName != null && libraryName.Length > 0 && libraryName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -3,7 +3,7 @@ using FEZRepacker.Core.FileSystem;
 using FEZRepacker.Core.XNB;
 using System.IO.Compression;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Source.Assets
 {
     public class Asset
     {
@@ -35,7 +35,7 @@ namespace HatModLoader.Source
 
         private void CheckMusicAsset()
         {
-            if(Extension == ".ogg" && AssetPath.StartsWith("music\\"))
+            if (Extension == ".ogg" && AssetPath.StartsWith("music\\"))
             {
                 IsMusicFile = true;
                 AssetPath = AssetPath.Substring("music\\".Length);

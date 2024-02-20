@@ -1,5 +1,7 @@
-﻿
-namespace HatModLoader.Source
+﻿using HatModLoader.Source.Assets;
+using HatModLoader.Source.ModDefinition;
+
+namespace HatModLoader.Source.ModLoaders
 {
     internal class DirectoryModLoader : IModLoader
     {
@@ -34,7 +36,7 @@ namespace HatModLoader.Source
 
         public List<Asset> LoadAssets()
         {
-            if(!TryGetAssetDirectoryPath(out var assetPath))
+            if (!TryGetAssetDirectoryPath(out var assetPath))
             {
                 return new();
             }
@@ -67,7 +69,7 @@ namespace HatModLoader.Source
             }
         }
 
-        public void Dispose() {}
+        public void Dispose() { }
 
         private bool TryGetAssetDirectoryPath(out string assetPaths)
         {

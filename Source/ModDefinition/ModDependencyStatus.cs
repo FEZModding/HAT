@@ -1,4 +1,4 @@
-﻿namespace HatModLoader.Source
+﻿namespace HatModLoader.Source.ModDefinition
 {
     public enum ModDependencyStatus
     {

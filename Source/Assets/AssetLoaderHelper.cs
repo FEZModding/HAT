@@ -3,7 +3,7 @@ using FEZRepacker.Core.Conversion;
 using FEZRepacker.Core.FileSystem;
 using FEZRepacker.Core.XNB;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Source.Assets
 {
     internal static class AssetLoaderHelper
     {

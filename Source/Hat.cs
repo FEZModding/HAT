@@ -1,5 +1,10 @@
 ﻿using Common;
 using FezGame;
+using HatModLoader.Source.Assets;
+using HatModLoader.Source.ModDefinition;
+using HatModLoader.Source.ModLoaders;
+using Microsoft.Xna.Framework;
+using System.Reflection;
 
 namespace HatModLoader.Source
 {
@@ -37,7 +42,8 @@ namespace HatModLoader.Source
             PrepareMods();
         }
 
-        public void PrepareMods()
+
+        private void PrepareMods()
         {
             Mods.Clear();
 
@@ -223,7 +229,7 @@ namespace HatModLoader.Source
             Logger.Log("HAT", LogSeverity.Warning, error);
         }
 
-        public void SortModsBasedOnDependencies()
+        private void SortModsBasedOnDependencies()
         {
             Mods.Sort((a, b) =>
             {
@@ -233,7 +239,7 @@ namespace HatModLoader.Source
             });
         }
 
-        public void InitalizeAssemblies()
+        internal void InitalizeAssemblies()
         {
             foreach (var mod in Mods)
             {
@@ -246,7 +252,7 @@ namespace HatModLoader.Source
             Logger.Log("HAT", "Assembly initialization completed!");
         }
 
-        public List<Asset> GetFullAssetList()
+        internal List<Asset> GetFullAssetList()
         {
             var list = new List<Asset>();
 
@@ -258,7 +264,7 @@ namespace HatModLoader.Source
             return list;
         }
 
-        public void InitalizeComponents()
+        internal void InitalizeComponents()
         {
             foreach(var mod in Mods)
             {

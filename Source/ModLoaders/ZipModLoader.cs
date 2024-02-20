@@ -1,6 +1,8 @@
 ﻿using System.IO.Compression;
+using HatModLoader.Source.Assets;
+using HatModLoader.Source.ModDefinition;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Source.ModLoaders
 {
     public class ZipModLoader : IModLoader
     {

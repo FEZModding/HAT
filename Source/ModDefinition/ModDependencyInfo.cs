@@ -1,6 +1,6 @@
 ﻿using System.Xml.Serialization;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Source.ModDefinition
 {
     [Serializable]
     public struct ModDependencyInfo

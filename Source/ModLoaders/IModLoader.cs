@@ -1,4 +1,7 @@
-﻿namespace HatModLoader.Source
+﻿using HatModLoader.Source.Assets;
+using HatModLoader.Source.ModDefinition;
+
+namespace HatModLoader.Source.ModLoaders
 {
     public interface IModLoader : IDisposable
     {

@@ -2,7 +2,7 @@
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
-namespace HatModLoader.Source
+namespace HatModLoader.Source.ModDefinition
 {
     [Serializable]
     [XmlType(TypeName = "Metadata")]
@@ -24,7 +24,7 @@ namespace HatModLoader.Source
 
                 if (metadata.Name == null || metadata.Name.Length == 0) return false;
                 if (metadata.Version == null || metadata.Version.Length == 0) return false;
-                
+
                 return true;
             }
             catch (Exception ex)
