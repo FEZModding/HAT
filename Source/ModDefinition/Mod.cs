@@ -164,6 +164,13 @@ namespace HatModLoader.Source.ModDefinition
 
             Assets = AssetLoaderHelper.GetListFromFileDictionary(files);
 
+            var pakPackagePath = AssetsDirectoryName + ".pak";
+            if (FileProxy.FileExists(pakPackagePath))
+            {
+                using var pakPackage = FileProxy.OpenFile(pakPackagePath);
+                Assets.AddRange(AssetLoaderHelper.LoadPakPackage(pakPackage));
+            }
+
             return Assets.Count > 0;
         }
 

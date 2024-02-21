@@ -36,5 +36,19 @@ namespace HatModLoader.Source.Assets
 
             return assets;
         }
+
+        public static List<Asset> LoadPakPackage(Stream stream)
+        {
+            var assets = new List<Asset>();
+
+            using var pakReader = new PakReader(stream);
+            foreach(var file in pakReader.ReadFiles())
+            {
+                using var fileData = file.Open();
+                assets.Add(new Asset(file.Path, file.FindExtension(), fileData));
+            }
+
+            return assets;
+        }
     }
 }
