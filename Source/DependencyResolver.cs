@@ -5,9 +5,10 @@ namespace HatModLoader.Source
 {
     internal static class DependencyResolver
     {
-        private static readonly string DependencyDirectory = "Dependencies";
+        private static readonly string DependencyDirectory = "HATDependencies";
 
         private static readonly Dictionary<string, string> DependencyMap = new();
+        private static readonly Dictionary<string, Assembly> DependencyCache = new();
 
         public static void Register()
         {
@@ -16,12 +17,14 @@ namespace HatModLoader.Source
 
         private static Assembly ResolveAssembliesEventHandler(object sender, ResolveEventArgs args)
         {
-            Logger.Log("HAT", "Resolving assembly: " + args.Name + " for assembly " + args.RequestingAssembly?.FullName ?? "(none)");
+            Logger.Log("HAT", "Resolving assembly: \"" + args.Name + "\" for assembly \"" + args.RequestingAssembly?.FullName ?? "(none)" + "\"");
 
             FillInDependencyMap(args);
 
-            if (TryResolveAssemblyFor("FEZRepacker.Core", args, out var repackerAssembly)) return repackerAssembly;
-            if (TryResolveAssemblyFor("MonoMod", args, out var monomodAssembly)) return monomodAssembly;
+            Assembly assembly;
+            if (DependencyCache.TryGetValue(IsolateName(args.Name), out assembly)) return assembly;
+            if (TryResolveAssemblyFor("MonoMod", args, out assembly)) return assembly;
+            if (TryResolveAssemblyFor("FEZRepacker.Core", args, out assembly)) return assembly;
 
             Logger.Log("HAT", "Did not resolve.");
 
@@ -30,10 +33,10 @@ namespace HatModLoader.Source
 
         private static void FillInDependencyMap(ResolveEventArgs args)
         {
-            var assemblyName = args.Name.Split(',')[0];
-            var requestingAssemblyName = args.RequestingAssembly?.FullName.Split(',')[0];
+            var assemblyName = IsolateName(args.Name);
+            var requestingAssemblyName = IsolateName(args.RequestingAssembly?.FullName ?? "");
 
-            if (requestingAssemblyName == null) return;
+            if (requestingAssemblyName.Length == 0) return;
 
             if (DependencyMap.ContainsKey(requestingAssemblyName))
             {
@@ -62,8 +65,8 @@ namespace HatModLoader.Source
 
                 if (requiredAssemblyName == fileName)
                 {
-                    var rawAssemblyData = File.ReadAllBytes(file);
-                    assembly = Assembly.Load(rawAssemblyData);
+                    assembly = Assembly.Load(File.ReadAllBytes(file));
+                    DependencyCache[requiredAssemblyName] = assembly;
                     return true;
                 }
             }
@@ -73,20 +76,23 @@ namespace HatModLoader.Source
 
         private static bool ShouldResolveFor(string assemblyName, ResolveEventArgs args)
         {
-            var requiredAssemblyName = args.Name.Split(',')[0];
-            var requestingAssemblyName = args.RequestingAssembly?.FullName.Split(',')[0] ?? "";
+            var requiredAssemblyName = IsolateName(args.Name);
+            var requestingAssemblyName = IsolateName(args.RequestingAssembly?.FullName ?? "");
 
             if (DependencyMap.ContainsKey(requestingAssemblyName))
             {
                 requestingAssemblyName = DependencyMap[requestingAssemblyName];
             }
 
-            Logger.Log("HAT", $"{requiredAssemblyName} mapped to {requestingAssemblyName}");
-
             bool requiredAssemblyValid = requiredAssemblyName.Contains(assemblyName);
             bool requestingAssemblyValid = requestingAssemblyName.Contains(assemblyName);
 
             return (requiredAssemblyValid || requestingAssemblyValid);
+        }
+
+        private static string IsolateName(string fullAssemblyQualifier)
+        {
+            return fullAssemblyQualifier.Split(',')[0];
         }
     }
 }
