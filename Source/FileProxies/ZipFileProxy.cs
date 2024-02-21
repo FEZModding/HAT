@@ -17,6 +17,8 @@ namespace HatModLoader.Source.FileProxies
 
         public IEnumerable<string> EnumerateFiles(string localPath)
         {
+            if (!localPath.EndsWith("/")) localPath += "/";
+
             return archive.Entries
                 .Where(e => e.FullName.StartsWith(localPath))
                 .Select(e => e.FullName);
