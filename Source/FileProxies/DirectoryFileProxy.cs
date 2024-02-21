@@ -14,12 +14,14 @@
 
         public IEnumerable<string> EnumerateFiles(string localPath)
         {
-            if(!Directory.Exists(modDirectory))
+            var searchPath = Path.Combine(modDirectory, localPath);
+
+            if(!Directory.Exists(searchPath))
             {
                 return Enumerable.Empty<string>();
             }
 
-            var localFilePaths = Directory.EnumerateFiles(modDirectory, "*", SearchOption.AllDirectories)
+            var localFilePaths = Directory.EnumerateFiles(searchPath, "*", SearchOption.AllDirectories)
                 .Select(path => path.Substring(modDirectory.Length + 1));
 
             return localFilePaths;

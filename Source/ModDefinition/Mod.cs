@@ -157,7 +157,7 @@ namespace HatModLoader.Source.ModDefinition
 
             foreach (var filePath in FileProxy.EnumerateFiles(AssetsDirectoryName))
             {
-                var relativePath = filePath.Substring(Mod.AssetsDirectoryName.Length + 1).Replace("/", "\\").ToLower();
+                var relativePath = filePath.Substring(AssetsDirectoryName.Length + 1).Replace("/", "\\").ToLower();
                 var fileStream = FileProxy.OpenFile(filePath);
                 files.Add(relativePath, fileStream);
             }
