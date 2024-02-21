@@ -133,7 +133,7 @@ namespace HatModLoader.Source
                 {
                     Logger.Log("HAT", LogSeverity.Warning, $"Mod \"{mod.FileProxy.ContainerName}\" does not have a valid metadata file.");
                 }
-                else if (mod.Info.LibraryName.Length > 0 && !mod.IsCodeMod)
+                else if (mod.Info.LibraryName != null && mod.Info.LibraryName.Length > 0 && !mod.IsCodeMod)
                 {
                     var info = $"Mod \"{mod.Info.Name}\" has library name defined (\"{mod.Info.LibraryName}\"), but no such library was found.";
                     Logger.Log("HAT", LogSeverity.Warning, info);

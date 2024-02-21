@@ -8,6 +8,8 @@ namespace HatModLoader.Source.Assets
 {
     internal static class AssetLoaderHelper
     {
+        private static readonly string[] AllowedRawExtensions = { ".xnb", ".ogg", ".fxc" };
+
         public static List<Asset> GetListFromFileDictionary(Dictionary<string, Stream> files)
         {
             var assets = new List<Asset>();
@@ -25,11 +27,21 @@ namespace HatModLoader.Source.Assets
                 }
                 catch(Exception ex)
                 {
-                    Logger.Log("HAT", $"Could not convert asset bundle {bundle.BundlePath}: {ex.Message}. File will be loaded in a raw form.");
+                    bool savedAnyRawFiles = false;
                     foreach (var file in bundle.Files)
                     {
+                        var extension = file.Extension;
+                        if (extension.Length == 0) extension = bundle.MainExtension;
+                        if (!AllowedRawExtensions.Contains(extension)) continue;
+
                         file.Data.Seek(0, SeekOrigin.Begin);
-                        assets.Add(new Asset(bundle.BundlePath, bundle.MainExtension + file.Extension, file.Data));
+                        assets.Add(new Asset(bundle.BundlePath, extension, file.Data));
+                        savedAnyRawFiles = true;
+                    }
+
+                    if (!savedAnyRawFiles)
+                    {
+                        Logger.Log("HAT", $"Could not convert asset bundle {bundle.BundlePath}: {ex.Message}.");
                     }
                 }
 
