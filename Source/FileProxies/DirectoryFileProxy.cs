@@ -18,7 +18,11 @@
             {
                 return Enumerable.Empty<string>();
             }
-            return Directory.EnumerateFiles(modDirectory);
+
+            var localFilePaths = Directory.EnumerateFiles(modDirectory, "*", SearchOption.AllDirectories)
+                .Select(path => path.Substring(modDirectory.Length + 1));
+
+            return localFilePaths;
         }
 
         public bool FileExists(string localPath)
