@@ -10,8 +10,8 @@ namespace HatModLoader.Installers
 {
     internal class AssetManagementInstaller : IHatInstaller
     {
-        public static IDetour CMProviderCtorDetour;
-        public static IDetour SMInitializeLibraryDetour;
+        public static Hook CMProviderCtorDetour;
+        public static Hook SMInitializeLibraryDetour;
 
         public void Install()
         {

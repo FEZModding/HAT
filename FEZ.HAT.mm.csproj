@@ -44,6 +44,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
+    <PackageReference Include="MonoMod.RuntimeDetour" Version="22.7.31.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -73,18 +75,6 @@
     </Reference>
     <Reference Include="XnaWordWrapCore">
       <HintPath>$(FezDir)\XnaWordWrapCore.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MonoMod">
-      <HintPath>$(MonoModDir)\MonoMod.exe</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MonoMod.RuntimeDetour">
-      <HintPath>$(MonoModDir)\MonoMod.RuntimeDetour.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MonoMod.Utils">
-      <HintPath>$(MonoModDir)\MonoMod.Utils.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

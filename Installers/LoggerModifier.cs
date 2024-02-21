@@ -9,7 +9,7 @@ namespace HatModLoader.Installers
     {
         private static readonly string LogDirectory = "Debug Logs";
 
-        public static IDetour LogDetour;
+        public static Hook LogDetour;
 
         public void Install()
         {

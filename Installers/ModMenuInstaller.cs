@@ -17,7 +17,7 @@ namespace HatModLoader.Installers
 
         private static int modMenuCurrentIndex;
 
-        private static IDetour MenuInitHook;
+        private static Hook MenuInitHook;
 
         public void Install()
         {
