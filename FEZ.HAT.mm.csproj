@@ -8,8 +8,6 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>FEZ.HAT.mm</AssemblyName>
     <RootNamespace>HatModLoader</RootNamespace>
-    
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -33,8 +31,7 @@
   <Target Name="PrepareHat" AfterTargets="Build">
     <ItemGroup>
       <SourceFiles Include="$(TargetDir)$(TargetName).dll" />
-      <SourceFiles Include="$(TargetDir)Packed\FEZRepacker.Core.dll" />
-      <SourceFiles Include="$(TargetDir)Packed\FEZ.Hooks.dll" />
+      <SourceFiles Include="$(TargetDir)FEZ.Hooks.mm.dll" />
     </ItemGroup>
     <Copy Condition="$(CopyOverHATToFez) == True" SourceFiles="@(SourceFiles)" DestinationFolder="$(FezDir)\" Retries="0" />
   </Target>

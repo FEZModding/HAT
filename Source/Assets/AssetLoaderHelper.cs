@@ -1,4 +1,5 @@
 ﻿
+using Common;
 using FEZRepacker.Core.Conversion;
 using FEZRepacker.Core.FileSystem;
 using FEZRepacker.Core.XNB;
@@ -22,8 +23,9 @@ namespace HatModLoader.Source.Assets
 
                     assets.Add(new Asset(bundle.BundlePath, ".xnb", xnbData));
                 }
-                catch
+                catch(Exception ex)
                 {
+                    Logger.Log("HAT", $"Could not convert asset bundle {bundle.BundlePath}: {ex.Message}. File will be loaded in a raw form.");
                     foreach (var file in bundle.Files)
                     {
                         file.Data.Seek(0, SeekOrigin.Begin);
