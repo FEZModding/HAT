@@ -8,6 +8,9 @@ namespace HatModLoader.Installers
     internal class LoggerModifier : IHatInstaller
     {
         private static readonly string LogDirectory = "Debug Logs";
+        private static string CustomLoggerPath => Path.Combine(Util.LocalSaveFolder, LogDirectory);
+        
+        private static readonly int MaximumLogDays = 30;
 
         public static Hook LogDetour;
 
@@ -22,21 +25,47 @@ namespace HatModLoader.Installers
             );
 
             SetCustomLoggerPath();
+            MoveOriginalLogsToCustomLoggerPath();
+            RemoveFilesOlderThanDays(MaximumLogDays);
+        }
+
+        private static string GetTimestampedLogFileName(DateTime date)
+        {
+            return $"[{date.ToString("yyyy-MM-dd_HH-mm-ss")}] Debug Log.txt";
         }
 
         private static void SetCustomLoggerPath()
         {
-            var logPath = Path.Combine(Util.LocalSaveFolder, LogDirectory);
-
-            if (!Directory.Exists(logPath))
+            if (!Directory.Exists(CustomLoggerPath))
             {
-                Directory.CreateDirectory(logPath);
+                Directory.CreateDirectory(CustomLoggerPath);
             }
 
-            var logFilePath = Path.Combine(logPath, $"[{DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss")}] Debug Log.txt");
+            var logFilePath = Path.Combine(CustomLoggerPath, GetTimestampedLogFileName(DateTime.Now));
 
             typeof(Logger).GetField("FirstLog", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, false);
             typeof(Logger).GetField("LogFilePath", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, logFilePath);
+        }
+
+        private static void MoveOriginalLogsToCustomLoggerPath()
+        {
+            foreach(var file in Directory.EnumerateFiles(Util.LocalSaveFolder, "*Debug Log*.txt"))
+            {
+                var fileCreationDate = File.GetCreationTime(file);
+                var newPath = Path.Combine(CustomLoggerPath, GetTimestampedLogFileName(fileCreationDate));
+                File.Move(file, newPath);
+            }
+        }
+
+        private static void RemoveFilesOlderThanDays(int days)
+        {
+            foreach (var file in Directory.EnumerateFiles(CustomLoggerPath, "*Debug Log*.txt"))
+            {
+                if ((DateTime.UtcNow - File.GetLastWriteTimeUtc(file)).TotalDays > days)
+                {
+                    File.Delete(file);
+                }
+            }
         }
 
         private static void LogCrashHandler(string component, LogSeverity severity, string message)
