@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <Target Name="BuildHookBinaries" AfterTargets="VerifyModReferences" Condition="!Exists('$(TargetDir)FEZ.Hooks.mm.dll')">
+  <Target Name="BuildHookBinaries" BeforeTargets="CopyHatOver" Condition="!Exists('$(TargetDir)FEZ.Hooks.mm.dll')">
 
     <MakeDir Directories="$(TargetDir)"/>
 
@@ -11,7 +11,10 @@
       <HookBinaries Include="FNA.dll" />
     </ItemGroup>
     
-    <Exec Command='"$(MonoModDir)\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' WorkingDirectory="$(MonoModDir)"/>
+    <Exec 
+      Command='"$(TargetDir)\HATDependencies\MonoMod\MonoMod.RuntimeDetour.HookGen.exe" "$(FezDir)\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' 
+      WorkingDirectory="$(TargetDir)\HATDependencies\MonoMod"
+    />
 
     <ItemGroup>
       <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)"/>
