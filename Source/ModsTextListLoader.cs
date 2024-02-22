@@ -8,9 +8,9 @@ namespace HatModLoader.Source
             return File.Exists(path);
         }
 
-        public static HashSet<string> Load(string path)
+        public static List<string> Load(string path)
         {
-            var modsList = new HashSet<string>();
+            var modsList = new List<string>();
 
             if(!Exists(path)) return modsList;
 
@@ -28,7 +28,7 @@ namespace HatModLoader.Source
             return modsList;
         }
 
-        public static HashSet<string> LoadOrCreateDefault(string path, string defaultContent)
+        public static List<string> LoadOrCreateDefault(string path, string defaultContent)
         {
             if(!Exists(path))
             {

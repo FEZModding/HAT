@@ -8,6 +8,9 @@ namespace HatModLoader.Source
 {
     public class Hat
     {
+        private List<string> blacklistedModNames = new();
+        private List<string> priorityModNamesList = new();
+
         public static Hat Instance;
 
         public Fez Game;
@@ -53,8 +56,11 @@ namespace HatModLoader.Source
                 return;
             }
 
+            InitializeBlacklist();
+            InitializePriorityList();
+
             RemoveBlacklistedMods();
-            RemoveOlderDuplicates();
+            RemoveDuplicates();
             InitializeDependencies();
             FilterOutInvalidMods();
             SortModsBasedOnDependencies();
@@ -145,20 +151,61 @@ namespace HatModLoader.Source
             }
         }
 
-        private void RemoveBlacklistedMods()
+        private void InitializeBlacklist()
         {
             var blacklistedNamesFilePath = Path.Combine(Mod.GetModsDirectory(), "blacklist.txt");
-            var defaultBlacklistContent =
+            var defaultContent =
                 "# List of directories and zip archives to ignore when loading mods, one per line.\n" +
                 "# Lines starting with # will be ignored.\n\n" +
                 "ExampleDirectoryModName\n" +
                 "ExampleZipPackageName.zip\n";
-            var blacklistedModNames = ModsTextListLoader.LoadOrCreateDefault(blacklistedNamesFilePath, defaultBlacklistContent);
+            blacklistedModNames = ModsTextListLoader.LoadOrCreateDefault(blacklistedNamesFilePath, defaultContent);
+        }
 
+        private void InitializePriorityList()
+        {
+            var priorityListFilePath = Path.Combine(Mod.GetModsDirectory(), "prioritylist.txt");
+            var defaultContent =
+                "# List of directories and zip archives to prioritize during mod loading.\n" +
+                "# If present on this list, the mod will be loaded before other mods not listed here or listed below it,\n" +
+                "# including newer versions of the same mod. However, it does not override dependency ordering.\n" +
+                "# Lines starting with # will be ignored.\n\n" +
+                "ExampleDirectoryModName\n" +
+                "ExampleZipPackageName.zip\n";
+            priorityModNamesList = ModsTextListLoader.LoadOrCreateDefault(priorityListFilePath, defaultContent);
+        }
+
+        private void RemoveBlacklistedMods()
+        {
             Mods = Mods.Where(mod => !blacklistedModNames.Contains(mod.FileProxy.ContainerName)).ToList();
         }
 
-        private void RemoveOlderDuplicates()
+        private int GetPriorityIndexOfMod(Mod mod)
+        {
+            var index = priorityModNamesList.IndexOf(mod.FileProxy.ContainerName);
+            if (index == -1) index = int.MaxValue;
+
+            return index;
+        }
+
+        private int CompareDuplicateMods(Mod mod1, Mod mod2)
+        {
+            var priorityIndex1 = GetPriorityIndexOfMod(mod1);
+            var priorityIndex2 = GetPriorityIndexOfMod(mod2);
+            var priorityComparison = priorityIndex1.CompareTo(priorityIndex2);
+
+            if(priorityComparison != 0)
+            {
+                return priorityComparison;
+            }
+            else
+            {
+                // Newest (largest) versions should be first, hence the negative sign.
+                return -mod1.CompareVersionsWith(mod2);
+            }
+        }
+
+        private void RemoveDuplicates()
         {
             var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
             foreach (var modName in uniqueNames)
@@ -166,9 +213,9 @@ namespace HatModLoader.Source
                 var sameNamedMods = Mods.Where(mod => mod.Info.Name == modName).ToList();
                 if (sameNamedMods.Count() > 1)
                 {
-                    sameNamedMods.Sort((mod1, mod2) => mod2.CompareVersionsWith(mod1));
+                    sameNamedMods.Sort(CompareDuplicateMods);
                     var newestMod = sameNamedMods.First();
-                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple instances of mod {modName} detected! Leaving only the newest version ({newestMod.Info.Version})");
+                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple instances of mod {modName} detected! Leaving version {newestMod.Info.Version}");
 
                     foreach (var mod in sameNamedMods)
                     {
