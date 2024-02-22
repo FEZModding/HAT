@@ -7,7 +7,7 @@ namespace HatModLoader.Source.FileProxies
         private ZipArchive archive;
         private string zipPath;
         public string RootPath => zipPath;
-        public string ContainerName => Path.GetFileNameWithoutExtension(zipPath);
+        public string ContainerName => Path.GetFileName(zipPath);
 
         public ZipFileProxy(string zipPath)
         {

@@ -53,6 +53,7 @@ namespace HatModLoader.Source
                 return;
             }
 
+            RemoveBlacklistedMods();
             RemoveOlderDuplicates();
             InitializeDependencies();
             FilterOutInvalidMods();
@@ -142,6 +143,19 @@ namespace HatModLoader.Source
                     Logger.Log("HAT", LogSeverity.Warning, $"Mod \"{mod.Info.Name}\" is empty and will not be added.");
                 }
             }
+        }
+
+        private void RemoveBlacklistedMods()
+        {
+            var blacklistedNamesFilePath = Path.Combine(Mod.GetModsDirectory(), "blacklist.txt");
+            var defaultBlacklistContent =
+                "# List of directories and zip archives to ignore when loading mods, one per line.\n" +
+                "# Lines starting with # will be ignored.\n\n" +
+                "ExampleDirectoryModName\n" +
+                "ExampleZipPackageName.zip\n";
+            var blacklistedModNames = ModsTextListLoader.LoadOrCreateDefault(blacklistedNamesFilePath, defaultBlacklistContent);
+
+            Mods = Mods.Where(mod => !blacklistedModNames.Contains(mod.FileProxy.ContainerName)).ToList();
         }
 
         private void RemoveOlderDuplicates()
