@@ -1,4 +1,5 @@
-﻿using FezEngine.Tools;
+﻿using Common;
+using FezEngine.Tools;
 using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
 using Microsoft.Xna.Framework;
@@ -47,6 +48,12 @@ namespace HatModLoader.Source.ModDefinition
                 if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic) continue;
                 var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { ModLoader.Game });
                 Components.Add(gameComponent);
+            }
+
+            if (Components.Count > 0)
+            {
+                var countText = $"{Components.Count} component{(Components.Count != 1 ? "s" : "")}";
+                Logger.Log("HAT", $"Initialized {countText} in mod \"{Info.Name}\"");
             }
         }
 

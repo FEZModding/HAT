@@ -121,8 +121,7 @@ namespace HatModLoader.Source
                 var libraryInfo = "no library";
                 if (mod.IsCodeMod)
                 {
-                    var componentsText = $"{mod.Components.Count} component{(mod.Components.Count != 1 ? "s" : "")}";
-                    libraryInfo = $"library \"{mod.Info.LibraryName}\" ({componentsText})";
+                    libraryInfo = $"library \"{mod.Info.LibraryName}\"";
                 }
                 var assetsText = $"{mod.Assets.Count} asset{(mod.Assets.Count != 1 ? "s" : "")}";
                 Logger.Log("HAT", $"Loaded mod \"{mod.Info.Name}\" ver. {mod.Info.Version} by {mod.Info.Author} ({assetsText} and {libraryInfo})");
