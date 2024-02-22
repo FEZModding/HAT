@@ -10,7 +10,7 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 ## Installing mod loader
 
-1. Download latest `FEZ.zip` from Release tab and unpack it in the game's directory.
+1. Download latest `HAT.zip` from Release tab and unpack it in the game's directory (next to the `FEZ.exe`).
 2. Run `hat_install.bat` (for Windows) or `hat_install.sh` (for Linux). This should generate new executable file called `MONOMODDED_FEZ.exe`.
 3. Run `MONOMODDED_FEZ.exe` and enjoy modding!
 
