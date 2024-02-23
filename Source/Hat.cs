@@ -8,7 +8,7 @@ namespace HatModLoader.Source
 {
     public class Hat
     {
-        private List<string> blacklistedModNames = new();
+        private List<string> ignoredModNames = new();
         private List<string> priorityModNamesList = new();
 
         public static Hat Instance;
@@ -56,7 +56,7 @@ namespace HatModLoader.Source
                 return;
             }
 
-            InitializeBlacklist();
+            InitializeIgnoredModsList();
             InitializePriorityList();
 
             RemoveBlacklistedMods();
@@ -151,15 +151,15 @@ namespace HatModLoader.Source
             }
         }
 
-        private void InitializeBlacklist()
+        private void InitializeIgnoredModsList()
         {
-            var blacklistedNamesFilePath = Path.Combine(Mod.GetModsDirectory(), "blacklist.txt");
+            var ignoredModsNamesFilePath = Path.Combine(Mod.GetModsDirectory(), "ignorelist.txt");
             var defaultContent =
                 "# List of directories and zip archives to ignore when loading mods, one per line.\n" +
                 "# Lines starting with # will be ignored.\n\n" +
                 "ExampleDirectoryModName\n" +
                 "ExampleZipPackageName.zip\n";
-            blacklistedModNames = ModsTextListLoader.LoadOrCreateDefault(blacklistedNamesFilePath, defaultContent);
+            ignoredModNames = ModsTextListLoader.LoadOrCreateDefault(ignoredModsNamesFilePath, defaultContent);
         }
 
         private void InitializePriorityList()
@@ -177,7 +177,7 @@ namespace HatModLoader.Source
 
         private void RemoveBlacklistedMods()
         {
-            Mods = Mods.Where(mod => !blacklistedModNames.Contains(mod.FileProxy.ContainerName)).ToList();
+            Mods = Mods.Where(mod => !ignoredModNames.Contains(mod.FileProxy.ContainerName)).ToList();
         }
 
         private int GetPriorityIndexOfMod(Mod mod)
