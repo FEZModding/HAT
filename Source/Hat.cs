@@ -46,8 +46,6 @@ namespace HatModLoader.Source
 
         private void PrepareMods()
         {
-            Mods.Clear();
-
             LoadMods();
 
             if(Mods.Count == 0)
@@ -66,21 +64,7 @@ namespace HatModLoader.Source
             FilterOutInvalidMods();
             SortModsBasedOnDependencies();
 
-            int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
-            int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
-
-            var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
-            var codeModsText = $"{codeModsCount} code mod{(codeModsCount != 1 ? "s" : "")}";
-            var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
-
-            Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
-
-            Logger.Log("HAT", $"Mods in their order of appearance:");
-
-            foreach(var mod in Mods)
-            {
-                Logger.Log("HAT", $"  {mod.Info.Name} by {mod.Info.Author} version {mod.Info.Version}");
-            }
+            LogLoadedMods();
         }
 
         private void EnsureModDirectory()
@@ -95,6 +79,8 @@ namespace HatModLoader.Source
 
         private void LoadMods()
         {
+            Mods.Clear();
+
             EnsureModDirectory();
 
             var modProxies = EnumerateFileProxiesInModsDirectory();
@@ -302,6 +288,24 @@ namespace HatModLoader.Source
             });
         }
 
+        private void LogLoadedMods()
+        {
+            int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
+            int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
+
+            var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
+            var codeModsText = $"{codeModsCount} code mod{(codeModsCount != 1 ? "s" : "")}";
+            var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
+
+            Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
+
+            Logger.Log("HAT", $"Mods in their order of appearance:");
+
+            foreach (var mod in Mods)
+            {
+                Logger.Log("HAT", $"  {mod.Info.Name} by {mod.Info.Author} version {mod.Info.Version}");
+            }
+        }
 
         internal void InitalizeAssemblies()
         {
