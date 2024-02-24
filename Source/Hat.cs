@@ -60,6 +60,7 @@ namespace HatModLoader.Source
             InitializePriorityList();
 
             RemoveBlacklistedMods();
+            SortModsByPriority();
             RemoveDuplicates();
             InitializeDependencies();
             FilterOutInvalidMods();
@@ -187,6 +188,15 @@ namespace HatModLoader.Source
 
             return index;
         }
+        private void SortModsByPriority()
+        {
+            Mods.Sort((mod1, mod2) =>
+            {
+                var priorityIndex1 = GetPriorityIndexOfMod(mod1);
+                var priorityIndex2 = GetPriorityIndexOfMod(mod2);
+                return priorityIndex1.CompareTo(priorityIndex2);
+            });
+        }
 
         private int CompareDuplicateMods(Mod mod1, Mod mod2)
         {
@@ -291,6 +301,7 @@ namespace HatModLoader.Source
                 return 0;
             });
         }
+
 
         internal void InitalizeAssemblies()
         {
