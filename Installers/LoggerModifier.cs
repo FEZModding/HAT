@@ -29,9 +29,21 @@ namespace HatModLoader.Installers
             RemoveFilesOlderThanDays(MaximumLogDays);
         }
 
-        private static string GetTimestampedLogFileName(DateTime date)
+        private static string GetTimestampedLogFileName(DateTime date, int index = 0)
         {
-            return $"[{date.ToString("yyyy-MM-dd_HH-mm-ss")}] Debug Log.txt";
+            return
+                index == 0
+                ? $"[{date.ToString("yyyy-MM-dd_HH-mm-ss")}] Debug Log.txt"
+                : $"[{date.ToString("yyyy-MM-dd_HH-mm-ss")}] Debug Log #{index+1}.txt";
+        }
+
+        private static string GetUniqueCustomLogFileName(DateTime date)
+        {
+            string path;
+            int i = 0;
+            do path = Path.Combine(CustomLoggerPath, GetTimestampedLogFileName(date, i++));
+            while (File.Exists(path));
+            return path;
         }
 
         private static void SetCustomLoggerPath()
@@ -41,7 +53,7 @@ namespace HatModLoader.Installers
                 Directory.CreateDirectory(CustomLoggerPath);
             }
 
-            var logFilePath = Path.Combine(CustomLoggerPath, GetTimestampedLogFileName(DateTime.Now));
+            var logFilePath = GetUniqueCustomLogFileName(DateTime.Now);
 
             typeof(Logger).GetField("FirstLog", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, false);
             typeof(Logger).GetField("LogFilePath", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, logFilePath);
@@ -52,7 +64,7 @@ namespace HatModLoader.Installers
             foreach(var file in Directory.EnumerateFiles(Util.LocalSaveFolder, "*Debug Log*.txt"))
             {
                 var fileCreationDate = File.GetCreationTime(file);
-                var newPath = Path.Combine(CustomLoggerPath, GetTimestampedLogFileName(fileCreationDate));
+                var newPath = GetUniqueCustomLogFileName(fileCreationDate);
                 File.Move(file, newPath);
             }
         }
