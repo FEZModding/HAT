@@ -26,15 +26,7 @@ It's that simple!
 
 ## Building HAT
 
-1. Clone repository.
-2. Edit `UserProperties.xml` to set up dependencies:
-
-* Remove the property `UserPropertiesNotSetUp`.
-* Set `FezDir` to FEZ's directory (where FEZ.exe and other binaries are located).
-* _Optional but recommended_: To prevent git from tracking your updated `UserProperties.xml`, run the command `git update-index --skip-worktree UserProperties.xml`.
-* Additionally, change `CopyOverHATToFez` flag if you want to copy HAT binary and all its dependencies to the FEZ directory once built.
-
-3. Build it, and then follow the installation instructions to test it.
+HAT is now using stripped game binaries and NuGet packages for building process, so it is not required to configure anything. Building HAT libraries should be as easy as cloning the repository and running the building process within the IDE of your choice (or through dotnet CLI if that's your thing).
 
 ## "Documentation"
 

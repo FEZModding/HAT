@@ -22,14 +22,16 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
-  <Import Project="$(ProjectDir)UserProperties.xml" />
-
   <!-- Build operations -->
 
   <Target Name="VerifyModReferences" BeforeTargets="BeforeBuild">
     <Error Text="You forgot to edit UserProperties.xml." Condition="$(UserPropertiesNotSetUp) == True" />
   </Target>
   
+  <Target Name="CleanUpHooksLibrary" BeforeTargets="Clean">
+    <Delete Files="$(TargetDir)FEZ.Hooks.mm.dll" />
+  </Target>
+
   <Target Name="RearrangeDependencies" AfterTargets="Build">
     <ItemGroup>
       <MonoModDependencies Include="$(TargetDir)Mono*" />
@@ -40,23 +42,6 @@
 
     <Move SourceFiles="@(MonoModDependencies)" DestinationFolder="$(TargetDir)HATDependencies/MonoMod"/>
     <Move SourceFiles="@(RepackerDependencies)" DestinationFolder="$(TargetDir)HATDependencies/FEZRepacker.Core"/>
-  </Target>
-
-  <Target Name="CopyHatOver" AfterTargets="RearrangeDependencies" Condition="$(CopyOverHATToFez) == True">
-    <ItemGroup>
-      <SourceFiles Include="$(TargetDir)$(TargetName).dll" />
-      <SourceFiles Include="$(TargetDir)FEZ.Hooks.mm.dll" />
-    </ItemGroup>
-    <ItemGroup>
-      <MovedMonoModDependencies Include="$(TargetDir)/HATDependencies/MonoMod/*" />
-    </ItemGroup>
-    <ItemGroup>
-      <MovedRepackerDependencies Include="$(TargetDir)/HATDependencies/FEZRepacker.Core/*" />
-    </ItemGroup>
-
-    <Copy SourceFiles="@(SourceFiles)" DestinationFolder="$(FezDir)\" Retries="0" />
-    <Copy SourceFiles="@(MovedMonoModDependencies)" DestinationFolder="$(FezDir)/HATDependencies/MonoMod/" Retries="0" />
-    <Copy SourceFiles="@(MovedRepackerDependencies)" DestinationFolder="$(FezDir)/HATDependencies/FEZRepacker.Core/" Retries="0" />
   </Target>
 
   <!-- Dependencies -->
@@ -72,37 +57,36 @@
     <PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.7.31.1" GeneratePathProperty="true">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Common">
-      <HintPath>$(FezDir)\Common.dll</HintPath>
+      <HintPath>Dependencies\Common.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ContentSerialization">
-      <HintPath>$(FezDir)\ContentSerialization.dll</HintPath>
+      <HintPath>Dependencies\ContentSerialization.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="EasyStorage">
-      <HintPath>$(FezDir)\EasyStorage.dll</HintPath>
+      <HintPath>Dependencies\EasyStorage.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="FEZ">
-      <HintPath>$(FezDir)\FEZ.exe</HintPath>
+      <HintPath>Dependencies\FEZ.exe</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="FezEngine">
-      <HintPath>$(FezDir)\FezEngine.dll</HintPath>
+      <HintPath>Dependencies\FezEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="FNA">
-      <HintPath>$(FezDir)\FNA.dll</HintPath>
+      <HintPath>Dependencies\FNA.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System.IO.Compression" />
     <Reference Include="XnaWordWrapCore">
-      <HintPath>$(FezDir)\XnaWordWrapCore.dll</HintPath>
+      <HintPath>Dependencies\XnaWordWrapCore.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
