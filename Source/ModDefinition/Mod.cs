@@ -22,7 +22,7 @@ namespace HatModLoader.Source.ModDefinition
         public IFileProxy FileProxy { get; private set; }
         public List<ModDependency> Dependencies { get; private set; }
         public List<Asset> Assets { get; private set; }
-        public List<IGameComponent> Components { get; private set; }
+        public List<GameComponent> Components { get; private set; }
 
         public bool IsAssetMod => Assets.Count > 0;
         public bool IsCodeMod => RawAssembly != null;
@@ -34,7 +34,7 @@ namespace HatModLoader.Source.ModDefinition
             RawAssembly = null;
             Assembly = null;
             Assets = new List<Asset>();
-            Components = new List<IGameComponent>();
+            Components = new List<GameComponent>();
             Dependencies = new List<ModDependency>();
             FileProxy = fileProxy;
         }
@@ -45,8 +45,9 @@ namespace HatModLoader.Source.ModDefinition
 
             foreach (Type type in Assembly.GetExportedTypes())
             {
-                if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic || type.IsAbstract) continue;
-                var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { ModLoader.Game });
+                if (!typeof(GameComponent).IsAssignableFrom(type) || !type.IsPublic || type.IsAbstract) continue;
+                //Note: The constructor accepting the type (Game) is defined in GameComponent
+                var gameComponent = (GameComponent)Activator.CreateInstance(type, new object[] { ModLoader.Game });
                 Components.Add(gameComponent);
             }
 

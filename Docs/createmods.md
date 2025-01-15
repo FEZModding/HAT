@@ -46,7 +46,7 @@ A small note regarding music files: since they're normally stored in a separate 
 
 ## Creating custom logic mod
 
-Mod loader loads library file given in metadata as an assembly, then attempts to create instances of every public class inheriting from game's `IGameComponent` interface before initialization (before any services are created). After the game has been initialized (that is, as soon as all necessary services are initiated), it adds created instances into the list of game's components and initializes them, allowing their `Update` and `Draw` (use `DrawableGameComponent`) to be properly executed within the game's loop.
+Mod loader loads library file given in metadata as an assembly, then attempts to create instances of every non-abstract public class extending the `GameComponent` class before initialization (before any services are created). After the game has been initialized (that is, as soon as all necessary services are initiated), it adds created instances into the list of game's components and initializes them, allowing their `Update` and `Draw` (use `DrawableGameComponent`) to be properly executed within the game's loop.
 
 In order to create a HAT-compatible library, start by creating an empty C# library project. Then, add `FEZ.exe`, `FezEngine.dll` and all other needed game's dependencies as references - make sure to set "Copy Local" to "False" on all of those references, otherwise you will ship your mod with copies of those files.
 
