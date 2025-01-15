@@ -45,7 +45,7 @@ namespace HatModLoader.Source.ModDefinition
 
             foreach (Type type in Assembly.GetExportedTypes())
             {
-                if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic) continue;
+                if (!typeof(IGameComponent).IsAssignableFrom(type) || !type.IsPublic || type.IsAbstract) continue;
                 var gameComponent = (IGameComponent)Activator.CreateInstance(type, new object[] { ModLoader.Game });
                 Components.Add(gameComponent);
             }
