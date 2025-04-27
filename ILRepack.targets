@@ -14,7 +14,12 @@
     <Exec 
       Command='"$(TargetDir)\HATDependencies\MonoMod\MonoMod.RuntimeDetour.HookGen.exe" "$(ProjectDir)\Dependencies\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' 
       WorkingDirectory="$(TargetDir)\HATDependencies\MonoMod"
-    />
+      Condition="'$(OS)' == 'Windows_NT'" />
+
+    <Exec 
+      Command='mono "$(TargetDir)/HATDependencies/MonoMod/MonoMod.RuntimeDetour.HookGen.exe" "$(ProjectDir)/Dependencies/%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' 
+      WorkingDirectory="$(TargetDir)/HATDependencies/MonoMod"
+      Condition="'$(OS)' != 'Windows_NT'" />
 
     <ItemGroup>
       <GeneratedHookBinaries Include="$(TargetDir)MMHOOK_%(HookBinaries.Identity)"/>
