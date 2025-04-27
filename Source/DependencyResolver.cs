@@ -76,17 +76,21 @@ namespace HatModLoader.Source
         private static bool ShouldResolveNamedFor(string assemblyName, ResolveEventArgs args)
         {
             var requiredAssemblyName = IsolateName(args.Name);
-            var requestingAssemblyName = IsolateName(GetMainRequiringAssembly(args)?.FullName ?? "");
+            var requestingAssemblyName = IsolateName(args.RequestingAssembly?.FullName ?? "");
+            var mainRequestingAssemblyName = IsolateName(GetMainRequiringAssembly(args)?.FullName ?? "");
 
             bool requiredAssemblyValid = requiredAssemblyName.Contains(assemblyName);
             bool requestingAssemblyValid = requestingAssemblyName.Contains(assemblyName);
+            bool mainRequestingAssemblyValid = mainRequestingAssemblyName.Contains(assemblyName);
 
-            return (requiredAssemblyValid || requestingAssemblyValid);
+            return requiredAssemblyValid || requestingAssemblyValid || mainRequestingAssemblyValid;
         }
 
         private static bool TryResolveModdedDependency(ResolveEventArgs args, out Assembly assembly)
         {
             assembly = default!;
+
+            if (Hat.Instance == null) return false;
 
             var requestingMainAssembly = GetMainRequiringAssembly(args);
             if (requestingMainAssembly == null) return false;
