@@ -1,0 +1,61 @@
+name: CD
+
+on:
+  push:
+    tags:
+    - '*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+
+      - name: Restore packages
+        run: dotnet restore FEZ.HAT.mm.csproj
+
+      - name: Build
+        run: dotnet build FEZ.HAT.mm.csproj -c Release
+
+      - name: Prepare artifact
+        shell: pwsh
+        run: |
+          New-Item -Path artifact -ItemType Directory -Force
+          Copy-Item -Path 'bin/Release/*' -Destination artifact -Recurse
+          Copy-Item -Path 'scripts/*' -Destination artifact -Recurse
+          Compress-Archive -Path artifact/* -DestinationPath HAT.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAT
+          path: HAT.zip
+          if-no-files-found: error
+  release:
+    if: github.repository == 'FEZModding/HAT'
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build
+        uses: actions/download-artifact@v4
+        with:
+          name: HAT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            ## Installation
+
+            1. Download `HAT.zip` from Release tab and unpack it in the game's directory (next to FEZ.exe).
+            2. Run `hat_install.bat` (for Windows) or `hat_install.sh` (for Linux, experimental!). This should generate new executable file called `MONOMODDED_FEZ.exe`.
+            3. Run `MONOMODDED_FEZ.exe` and enjoy modding!
+
+            ## Changelog
+
+            TODO
+          files: HAT.zip
+          fail_on_unmatched_files: true
