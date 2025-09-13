@@ -15,6 +15,7 @@ on:
       - 'docs/**'
       - '**.md'
       - 'LICENSE'
+  workflow_dispatch:
 
 jobs:
   build:
