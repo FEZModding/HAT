@@ -37,11 +37,11 @@ jobs:
           New-Item -Path artifact -ItemType Directory -Force
           Copy-Item -Path 'bin/Debug/*' -Destination artifact -Recurse
           Copy-Item -Path 'scripts/*' -Destination artifact -Recurse
-          Compress-Archive -Path artifact/* -DestinationPath HAT.zip
+          Compress-Archive -Path artifact/ -DestinationPath HAT.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: HAT
-          path: HAT.zip
+          path: artifact/
           if-no-files-found: error
