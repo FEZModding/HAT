@@ -2,6 +2,7 @@
 using FezEngine.Tools;
 using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
+using HatModLoader.Source.AssemblyResolving;
 using Microsoft.Xna.Framework;
 using System.Reflection;
 
@@ -15,6 +16,8 @@ namespace HatModLoader.Source.ModDefinition
         public static readonly string ModMetadataFileName = "Metadata.xml";
 
         public Hat ModLoader;
+        
+        private IAssemblyResolver _internalAssemblyResolver;
 
         public byte[] RawAssembly { get; private set; }
         public Assembly Assembly { get; private set; }
@@ -68,8 +71,13 @@ namespace HatModLoader.Source.ModDefinition
 
         public void InitializeAssembly()
         {
-            if (RawAssembly == null) return;
-            Assembly = Assembly.Load(RawAssembly);
+            _internalAssemblyResolver = new ModInternalAssemblyResolver(this);
+            AssemblyResolverRegistry.Register(_internalAssemblyResolver);
+            
+            if (RawAssembly != null)
+            {
+                Assembly = Assembly.Load(RawAssembly);
+            }
         }
 
         public void Dispose()
@@ -80,6 +88,8 @@ namespace HatModLoader.Source.ModDefinition
             {
                 ServiceHelper.RemoveComponent(component);
             }
+            
+            AssemblyResolverRegistry.Unregister(_internalAssemblyResolver);
         }
 
         public int CompareVersionsWith(Mod mod)

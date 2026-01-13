@@ -1,7 +1,6 @@
 ﻿using Common;
 using HatModLoader.Source;
 using System.Globalization;
-using System.Runtime.InteropServices;
 
 namespace FezGame
 {
@@ -11,8 +10,8 @@ namespace FezGame
 
         private static void Main(string[] args)
         {
-            // Ensuring that dependency resolver is registered as soon as it's possible.
-            DependencyResolver.Register();
+            // Ensuring that required dependencies can be resolved before anything else.
+            Hat.RegisterRequiredDependencyResolvers();
 
             // Ensure uniform culture
             Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("en-GB");

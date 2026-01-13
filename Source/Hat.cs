@@ -1,5 +1,6 @@
 ﻿using Common;
 using FezGame;
+using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
 using HatModLoader.Source.ModDefinition;
@@ -341,5 +342,10 @@ namespace HatModLoader.Source
             Logger.Log("HAT", "Component initialization completed!");
         }
 
+        public static void RegisterRequiredDependencyResolvers()
+        {
+            AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("MonoMod"));
+            AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("FEZRepacker.Core"));
+        }
     }
 }
