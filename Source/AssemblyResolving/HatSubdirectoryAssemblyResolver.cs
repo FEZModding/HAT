@@ -26,7 +26,7 @@ namespace HatModLoader.Source.AssemblyResolving
                 }
             }
 
-            return null!;
+            return null;
         }
         
         private IEnumerable<string> EnumerateAssemblyFilesInSubdirectory()

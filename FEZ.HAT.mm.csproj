@@ -10,7 +10,7 @@
     <RootNamespace>HatModLoader</RootNamespace>
 
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
 
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 

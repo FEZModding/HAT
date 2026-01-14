@@ -31,7 +31,7 @@ namespace HatModLoader.Source.AssemblyResolving
                 return Assembly.Load(assemblyBytes);
             }
             
-            return null!;
+            return null;
         }
 
         private void CacheAssemblyPaths()
