@@ -8,7 +8,7 @@ namespace HatModLoader.Source.AssemblyResolving
     {
         private readonly Mod _mod;
 
-        private readonly Dictionary<string, string> _cachedAssemblyPaths = new();
+        private readonly Dictionary<AssemblyName, string> _cachedAssemblyPaths = new();
         
         public ModInternalAssemblyResolver(Mod mod)
         {
@@ -18,19 +18,21 @@ namespace HatModLoader.Source.AssemblyResolving
         
         public Assembly ProvideAssembly(object sender, ResolveEventArgs args)
         {
-            if (_mod.Assembly?.FullName == args.Name)
+            if (_mod.Assembly != null && _mod.Assembly.GetName().MatchesRequest(args, false))
             {
                 return _mod.Assembly;
             }
             
-            if (_cachedAssemblyPaths.TryGetValue(args.Name, out var assemblyPath))
+            foreach(var assemblyName in _cachedAssemblyPaths.Keys)
             {
-                using var assemblyData = _mod.FileProxy.OpenFile(assemblyPath);
-                var assemblyBytes = new byte[assemblyData.Length];
-                assemblyData.Read(assemblyBytes, 0, assemblyBytes.Length);
-                return Assembly.Load(assemblyBytes);
+                if (assemblyName.MatchesRequest(args, false))
+                {
+                    using var assemblyData = _mod.FileProxy.OpenFile(_cachedAssemblyPaths[assemblyName]);
+                    var assemblyBytes = new byte[assemblyData.Length];
+                    assemblyData.Read(assemblyBytes, 0, assemblyBytes.Length);
+                    return Assembly.Load(assemblyBytes);
+                }
             }
-            
             return null;
         }
 
@@ -40,7 +42,7 @@ namespace HatModLoader.Source.AssemblyResolving
             {
                 using var assemblyFile = _mod.FileProxy.OpenFile(filePath);
                 using var assemblyDef = AssemblyDefinition.ReadAssembly(assemblyFile, new ReaderParameters { ReadSymbols = false });
-                var fullName = assemblyDef.Name.ToString();
+                var fullName = new AssemblyName(assemblyDef.Name.ToString());
                 
                 if (!_cachedAssemblyPaths.ContainsKey(fullName))
                 {

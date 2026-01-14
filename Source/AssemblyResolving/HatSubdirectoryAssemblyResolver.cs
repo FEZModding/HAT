@@ -1,4 +1,3 @@
-
 using System.Reflection;
 
 namespace HatModLoader.Source.AssemblyResolving
@@ -19,8 +18,12 @@ namespace HatModLoader.Source.AssemblyResolving
         {
             foreach (var file in EnumerateAssemblyFilesInSubdirectory())
             {
-                var assemblyName = AssemblyName.GetAssemblyName(file);
-                if (assemblyName.FullName == args.Name)
+                if (!TryGetAssemblyName(file, out var assemblyName))
+                {
+                    continue;
+                }
+                
+                if (assemblyName.MatchesRequest(args, true))
                 {
                     return Assembly.LoadFrom(file);
                 }
@@ -46,6 +49,20 @@ namespace HatModLoader.Source.AssemblyResolving
             foreach (var file in Directory.EnumerateFiles(path, "*.exe", SearchOption.TopDirectoryOnly))
             {
                 yield return file;
+            }
+        }
+
+        private bool TryGetAssemblyName(string filePath, out AssemblyName assemblyName)
+        {
+            assemblyName = null;
+            try
+            {
+                assemblyName = AssemblyName.GetAssemblyName(filePath);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
     }
