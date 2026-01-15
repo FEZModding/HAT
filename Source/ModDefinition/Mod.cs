@@ -5,6 +5,8 @@ using HatModLoader.Source.FileProxies;
 using HatModLoader.Source.AssemblyResolving;
 using Microsoft.Xna.Framework;
 using System.Reflection;
+using System.Xml.Serialization;
+using FezEngine.Effects;
 
 namespace HatModLoader.Source.ModDefinition
 {
@@ -21,7 +23,7 @@ namespace HatModLoader.Source.ModDefinition
 
         public byte[] RawAssembly { get; private set; }
         public Assembly Assembly { get; private set; }
-        public ModMetadata Info { get; private set; }
+        public Metadata Info { get; private set; }
         public IFileProxy FileProxy { get; private set; }
         public List<ModDependency> Dependencies { get; private set; }
         public List<Asset> Assets { get; private set; }
@@ -94,7 +96,7 @@ namespace HatModLoader.Source.ModDefinition
 
         public int CompareVersionsWith(Mod mod)
         {
-            return ModMetadata.CompareVersions(Info.Version, mod.Info.Version);
+            return Metadata.CompareVersions(Info.Version, mod.Info.Version);
         }
 
         public void InitializeDependencies()
@@ -157,16 +159,28 @@ namespace HatModLoader.Source.ModDefinition
             {
                 return false;
             }
-
-            using var metadataStream = FileProxy.OpenFile(ModMetadataFileName);
-            if (!ModMetadata.TryLoadFrom(metadataStream, out var metadata))
+            
+            try
             {
-                return false;
+                using var stream = FileProxy.OpenFile(ModMetadataFileName);
+                using var reader = new StreamReader(stream);
+                
+                var serializer = new XmlSerializer(typeof(Metadata));
+                var metadata = (Metadata)serializer.Deserialize(reader);
+
+                if (!string.IsNullOrEmpty(metadata.Name) && string.IsNullOrEmpty(metadata.Version))
+                {
+                    Info = metadata;
+                    return true;
+                }
             }
-
-            Info = metadata;
-
-            return true;
+            catch (Exception ex)
+            {
+                Logger.Log("HAT", LogSeverity.Warning, $"Failed to load mod metadata: {ex.Message}");
+                Info = default;
+            }
+            
+            return false;
         }
 
         private bool TryLoadAssets()

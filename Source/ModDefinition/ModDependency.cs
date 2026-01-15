@@ -5,7 +5,7 @@ namespace HatModLoader.Source.ModDefinition
     [Serializable]
     public struct ModDependency
     {
-        public ModDependencyInfo Info;
+        public Metadata.DependencyInfo Info;
         public Mod Instance;
         public ModDependencyStatus Status;
         public bool IsModLoaderDependency => Info.Name == "HAT";
@@ -13,7 +13,7 @@ namespace HatModLoader.Source.ModDefinition
         public string DetectedVersion => IsModLoaderDependency ? Hat.Version : Instance != null ? Instance.Info.Version : null;
 
 
-        public ModDependency(ModDependencyInfo info, Mod instance)
+        public ModDependency(Metadata.DependencyInfo info, Mod instance)
         {
             Info = info;
             Instance = instance;
@@ -25,7 +25,7 @@ namespace HatModLoader.Source.ModDefinition
         {
             if (IsModLoaderDependency || Instance != null)
             {
-                if (ModMetadata.CompareVersions(DetectedVersion, Info.MinimumVersion) < 0)
+                if (Metadata.CompareVersions(DetectedVersion, Info.MinimumVersion) < 0)
                 {
                     Status = ModDependencyStatus.InvalidVersion;
                 }
