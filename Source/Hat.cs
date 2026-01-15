@@ -17,16 +17,17 @@ namespace HatModLoader.Source
         public Fez Game;
         public List<Mod> Mods;
         public List<Mod> InvalidMods;
+        
+        public static readonly Version Version =  new("1.2.1");
 
-        public static string Version
+        public static string VersionString
         {
             get
             {
-                const string version = "1.2.1";
 #if DEBUG
-                return $"{version}-dev";
+                return $"{Version}-dev";
 #else
-                return $"{version}";
+                return Version.ToString();
 #endif
             }
         }
@@ -40,7 +41,7 @@ namespace HatModLoader.Source
             Mods = new List<Mod>();
             InvalidMods = new List<Mod>();
 
-            Logger.Log("HAT", $"HAT Mod Loader {Version}");
+            Logger.Log("HAT", $"HAT Mod Loader {VersionString}");
             PrepareMods();
         }
 
@@ -198,7 +199,7 @@ namespace HatModLoader.Source
             else
             {
                 // Newest (largest) versions should be first, hence the negative sign.
-                return -mod1.CompareVersionsWith(mod2);
+                return -mod1.Info.Version.CompareTo(mod2.Info.Version);
             }
         }
 

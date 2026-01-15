@@ -94,11 +94,6 @@ namespace HatModLoader.Source.ModDefinition
             AssemblyResolverRegistry.Unregister(_internalAssemblyResolver);
         }
 
-        public int CompareVersionsWith(Mod mod)
-        {
-            return Metadata.CompareVersions(Info.Version, mod.Info.Version);
-        }
-
         public void InitializeDependencies()
         {
             if (Info.Dependencies == null || Info.Dependencies.Count() == 0) return;
@@ -168,7 +163,7 @@ namespace HatModLoader.Source.ModDefinition
                 var serializer = new XmlSerializer(typeof(Metadata));
                 var metadata = (Metadata)serializer.Deserialize(reader);
 
-                if (!string.IsNullOrEmpty(metadata.Name) && string.IsNullOrEmpty(metadata.Version))
+                if (!string.IsNullOrEmpty(metadata.Name) && metadata.Version != null)
                 {
                     Info = metadata;
                     return true;
