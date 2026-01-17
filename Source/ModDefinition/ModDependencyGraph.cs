@@ -35,7 +35,7 @@ namespace HatModLoader.Source.ModDefinition
             
             public ModDependencyStatus Status { get; private set; } = ModDependencyStatus.Valid;
 
-            private string Details { get; set; }
+            public string Details { get; private set; }
 
             public Node(CodeMod mod)
             {
@@ -49,20 +49,6 @@ namespace HatModLoader.Source.ModDefinition
                     Status = status;
                     Details = details;
                 }
-            }
-
-            public string GetStatusText()
-            {
-                var statusText = Status switch
-                {
-                    ModDependencyStatus.Valid => "Valid",
-                    ModDependencyStatus.InvalidVersion => "Version mismatch",
-                    ModDependencyStatus.InvalidNotFound => "Not found",
-                    ModDependencyStatus.InvalidRecursive => "Circular dependency",
-                    ModDependencyStatus.InvalidDependencyTree => "Dependency tree error",
-                    _ => "Unknown"
-                };
-                return $"{statusText} - {Details}";
             }
 
             public override string ToString()

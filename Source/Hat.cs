@@ -148,7 +148,7 @@ namespace HatModLoader.Source
 
             foreach (var node in resolverResult.Invalid)
             {
-                Logger.Log("HAT", $"Mod '{node.Mod.Metadata.Name}' is invalid: {node.GetStatusText()}");
+                Logger.Log("HAT", $"Code mod '{node.Mod.Metadata.Name}' is invalid: {node.Details}");
             }
         
             var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
