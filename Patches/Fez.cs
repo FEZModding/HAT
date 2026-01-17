@@ -31,7 +31,7 @@ namespace FezGame
         protected override void Initialize()
         {
             HatML = new Hat(this);
-            HatML.InitalizeAssemblies();
+            HatML.InitializeAssemblies();
             //HatML.InitializeAssets(musicPass: false);
             orig_Initialize();
             DrawingTools.Init();
@@ -44,7 +44,7 @@ namespace FezGame
             bool doLoad = !ServiceHelper.FirstLoadDone;
             orig_LoadComponents(game);
             if (doLoad) {
-                HatML.InitalizeComponents();
+                HatML.InitializeComponents();
             }
         }
 

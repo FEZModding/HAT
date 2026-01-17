@@ -1,4 +1,5 @@
-﻿using Common;
+﻿using System.Xml.Serialization;
+using Common;
 using FezGame;
 using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.Assets;
@@ -9,16 +10,39 @@ namespace HatModLoader.Source
 {
     public class Hat
     {
-        private List<string> ignoredModNames = new();
-        private List<string> priorityModNamesList = new();
+        public static readonly Version Version = new("1.2.1");
 
-        public static Hat Instance;
+        private static readonly string ModsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods");
 
-        public Fez Game;
-        public List<Mod> Mods;
-        public List<Mod> InvalidMods;
-        
-        public static readonly Version Version =  new("1.2.1");
+        private const string ModMetadataFile = "Metadata.xml";
+
+        private const string AssetDirectoryName = "Assets";
+
+        private const string AssetPakName = AssetDirectoryName + ".pak";
+
+        private static readonly IList<string> IgnoredModNames = InitializeIgnoredModsList();
+
+        private static readonly IList<string> PriorityModNames = InitializePriorityList();
+
+        private List<AssetMod> _assetMods;
+
+        private List<CodeMod> _codeMods;
+    
+        private List<IMod> _mods;
+
+        public IList<IMod> Mods
+        {
+            get
+            {
+                _mods ??= _assetMods.Concat<IMod>(_codeMods)
+                    .GroupBy(p => p.FileProxy)
+                    .Select(g => g.First())
+                    .ToList();
+                return _mods;
+            }
+        }
+
+        public int InvalidModsCount { get; private set; }
 
         public static string VersionString
         {
@@ -32,321 +56,252 @@ namespace HatModLoader.Source
             }
         }
 
+        public static Hat Instance { get; private set; }
+
+        private readonly Fez _fezGame;
 
         public Hat(Fez fez)
         {
             Instance = this;
-            Game = fez;
+            _fezGame = fez;
+            Initialize();
+        }
 
-            Mods = new List<Mod>();
-            InvalidMods = new List<Mod>();
-
+        private void Initialize()
+        {
             Logger.Log("HAT", $"HAT Mod Loader {VersionString}");
-            PrepareMods();
-        }
 
+            #region Load file proxies
 
-        private void PrepareMods()
-        {
-            LoadMods();
-
-            if(Mods.Count == 0)
+            if (!Directory.Exists(ModsDirectory))
             {
-                Logger.Log("HAT", $"No mods have been found in the directory.");
-                return;
+                Logger.Log("HAT", LogSeverity.Warning, 
+                    "Main mods directory not found. Creating and skipping mod loading process...");
+                Directory.CreateDirectory(ModsDirectory);
             }
 
-            InitializeIgnoredModsList();
-            InitializePriorityList();
-
-            RemoveBlacklistedMods();
-            SortModsByPriority();
-            RemoveDuplicates();
-            InitializeDependencies();
-            FilterOutInvalidMods();
-            SortModsBasedOnDependencies();
-
-            LogLoadedMods();
-        }
-
-        private void EnsureModDirectory()
-        {
-            if (!Directory.Exists(Mod.GetModsDirectory()))
-            {
-                Logger.Log("HAT", LogSeverity.Warning, "Main mods directory not found. Creating and skipping mod loading process...");
-                Directory.CreateDirectory(Mod.GetModsDirectory());
-                return;
-            }
-        }
-
-        private void LoadMods()
-        {
-            Mods.Clear();
-
-            EnsureModDirectory();
-
-            var modProxies = EnumerateFileProxiesInModsDirectory();
-
-            foreach (var proxy in modProxies)
-            {
-                bool loadingState = Mod.TryLoad(this, proxy, out Mod mod);
-                if (loadingState)
+            var proxies = new IEnumerable<IFileProxy>[]
                 {
-                    Mods.Add(mod);
+                    DirectoryFileProxy.EnumerateInDirectory(ModsDirectory),
+                    ZipFileProxy.EnumerateInDirectory(ModsDirectory),
                 }
-                LogModLoadingState(mod, loadingState);
-            }
-        }
+                .SelectMany(x => x);
 
-        private static IEnumerable<IFileProxy> EnumerateFileProxiesInModsDirectory()
-        {
-            var modsDir = Mod.GetModsDirectory();
+            #endregion
 
-            return new IEnumerable<IFileProxy>[]
-            {
-                DirectoryFileProxy.EnumerateInDirectory(modsDir),
-                ZipFileProxy.EnumerateInDirectory(modsDir),
-            }
-            .SelectMany(x => x);
-        }
+            #region Load metadata and check them against blacklist
 
-        private void LogModLoadingState(Mod mod, bool loadState)
-        {
-            if (loadState)
+            var metas = new Dictionary<IFileProxy, Metadata>();
+            foreach (var proxy in proxies)
             {
-                var libraryInfo = "no library";
-                if (mod.IsCodeMod)
+                if (IgnoredModNames.Contains(proxy.ContainerName))
                 {
-                    libraryInfo = $"library \"{mod.Info.LibraryName}\"";
+                    continue;
                 }
-                var assetsText = $"{mod.Assets.Count} asset{(mod.Assets.Count != 1 ? "s" : "")}";
-                Logger.Log("HAT", $"Loaded mod \"{mod.Info.Name}\" ver. {mod.Info.Version} by {mod.Info.Author} ({assetsText} and {libraryInfo})");
-            }
-            else
-            {
-                if (mod.Info.Name == null)
+
+                if (TryLoadMetadata(proxy, out var metadata))
                 {
-                    Logger.Log("HAT", LogSeverity.Warning, $"Mod \"{mod.FileProxy.ContainerName}\" does not have a valid metadata file.");
-                }
-                else if (mod.Info.LibraryName != null && mod.Info.LibraryName.Length > 0 && !mod.IsCodeMod)
-                {
-                    var info = $"Mod \"{mod.Info.Name}\" has library name defined (\"{mod.Info.LibraryName}\"), but no such library was found.";
-                    Logger.Log("HAT", LogSeverity.Warning, info);
-                }
-                else if (!mod.IsCodeMod && !mod.IsAssetMod)
-                {
-                    Logger.Log("HAT", LogSeverity.Warning, $"Mod \"{mod.Info.Name}\" is empty and will not be added.");
+                    metas.Add(proxy, metadata);
                 }
             }
-        }
 
-        private void InitializeIgnoredModsList()
-        {
-            var ignoredModsNamesFilePath = Path.Combine(Mod.GetModsDirectory(), "ignorelist.txt");
-            var defaultContent =
-                "# List of directories and zip archives to ignore when loading mods, one per line.\n" +
-                "# Lines starting with # will be ignored.\n\n" +
-                "ExampleDirectoryModName\n" +
-                "ExampleZipPackageName.zip\n";
-            ignoredModNames = ModsTextListLoader.LoadOrCreateDefault(ignoredModsNamesFilePath, defaultContent);
-        }
+            #endregion
 
-        private void InitializePriorityList()
-        {
-            var priorityListFilePath = Path.Combine(Mod.GetModsDirectory(), "prioritylist.txt");
-            var defaultContent =
-                "# List of directories and zip archives to prioritize during mod loading.\n" +
-                "# If present on this list, the mod will be loaded before other mods not listed here or listed below it,\n" +
-                "# including newer versions of the same mod. However, it does not override dependency ordering.\n" +
-                "# Lines starting with # will be ignored.\n\n" +
-                "ExampleDirectoryModName\n" +
-                "ExampleZipPackageName.zip\n";
-            priorityModNamesList = ModsTextListLoader.LoadOrCreateDefault(priorityListFilePath, defaultContent);
-        }
+            #region Load asset mods first and sort them against priority list
 
-        private void RemoveBlacklistedMods()
-        {
-            Mods = Mods.Where(mod => !ignoredModNames.Contains(mod.FileProxy.ContainerName)).ToList();
-        }
-
-        private int GetPriorityIndexOfMod(Mod mod)
-        {
-            var index = priorityModNamesList.IndexOf(mod.FileProxy.ContainerName);
-            if (index == -1) index = int.MaxValue;
-
-            return index;
-        }
-        private void SortModsByPriority()
-        {
-            Mods.Sort((mod1, mod2) =>
+            _assetMods = [];
+            foreach (var meta in metas)
             {
-                var priorityIndex1 = GetPriorityIndexOfMod(mod1);
-                var priorityIndex2 = GetPriorityIndexOfMod(mod2);
+                if (TryLoadAssets(meta.Key, meta.Value, out var assetMod))
+                {
+                    _assetMods.Add(assetMod);
+                }
+            }
+
+            _assetMods.Sort((mod1, mod2) =>
+            {
+                var priorityIndex1 = GetPriorityIndex(mod1.FileProxy);
+                var priorityIndex2 = GetPriorityIndex(mod2.FileProxy);
                 return priorityIndex1.CompareTo(priorityIndex2);
             });
-        }
 
-        private int CompareDuplicateMods(Mod mod1, Mod mod2)
-        {
-            var priorityIndex1 = GetPriorityIndexOfMod(mod1);
-            var priorityIndex2 = GetPriorityIndexOfMod(mod2);
-            var priorityComparison = priorityIndex1.CompareTo(priorityIndex2);
+            #endregion
 
-            if(priorityComparison != 0)
-            {
-                return priorityComparison;
-            }
-            else
-            {
-                // Newest (largest) versions should be first, hence the negative sign.
-                return -mod1.Info.Version.CompareTo(mod2.Info.Version);
-            }
-        }
+            #region Build dependency graph for code mods and load them
 
-        private void RemoveDuplicates()
-        {
-            var uniqueNames = Mods.Select(mod => mod.Info.Name).Distinct().ToList();
-            foreach (var modName in uniqueNames)
+            var codeMods = new List<CodeMod>();
+            foreach (var meta in metas)
             {
-                var sameNamedMods = Mods.Where(mod => mod.Info.Name == modName).ToList();
-                if (sameNamedMods.Count() > 1)
+                if (TryLoadAssembly(meta.Key, meta.Value, out var codeMod))
                 {
-                    sameNamedMods.Sort(CompareDuplicateMods);
-                    var newestMod = sameNamedMods.First();
-                    Logger.Log("HAT", LogSeverity.Warning, $"Multiple instances of mod {modName} detected! Leaving version {newestMod.Info.Version}");
-
-                    foreach (var mod in sameNamedMods)
-                    {
-                        if (mod == newestMod) continue;
-                        Mods.Remove(mod);
-                    }
+                    codeMods.Add(codeMod);
                 }
             }
-        }
 
-        private void InitializeDependencies()
-        {
-            foreach (var mod in Mods)
+            var resolverResult = ModDependencyResolver.Resolve(codeMods);
+            _codeMods = resolverResult.LoadOrder;
+            InvalidModsCount = resolverResult.Invalid.Count;
+
+            #endregion
+
+            #region Log initialization result
+
+            foreach (var node in resolverResult.Invalid)
             {
-                mod.InitializeDependencies();
+                Logger.Log("HAT", $"Mod '{node.Mod.Metadata.Name}' is invalid: {node.GetStatusText()}");
             }
-
-            FinalizeDependencies();
-        }
-
-        private void FinalizeDependencies()
-        {
-            for(int i=0;i<=Mods.Count; i++)
-            {
-                if(i == Mods.Count)
-                {
-                    // there's no possible way to have more dependency nesting levels than the mod count. Escape!
-                    throw new ApplicationException("Stuck in a mod dependency finalization loop!");
-                }
-
-                bool noInvalidMods = true;
-                foreach (var mod in Mods)
-                {
-                    if (mod.TryFinalizeDependencies()) continue;
-
-                    noInvalidMods = false;
-                }
-                if (noInvalidMods)
-                {
-                    break;
-                }
-            }
-        }
-
-        private void FilterOutInvalidMods()
-        {
-            InvalidMods = Mods.Where(mod => !mod.AreDependenciesValid()).ToList();
-            foreach (var invalidMod in InvalidMods)
-            {
-                LogIssuesWithInvalidMod(invalidMod);
-                Mods.Remove(invalidMod);
-            }
-        }
-
-        private void LogIssuesWithInvalidMod(Mod invalidMod)
-        {
-            var delegateIssues = invalidMod.Dependencies
-                    .Where(dep => dep.Status != ModDependencyStatus.Valid)
-                    .Select(dependency => $"{dependency.Info.Name} ({dependency.GetStatusString()})")
-                    .ToList();
-
-            string error = $"Dependency issues in mod {invalidMod.Info.Name} found: {string.Join(", ", delegateIssues)}";
-
-            Logger.Log("HAT", LogSeverity.Warning, error);
-        }
-
-        private void SortModsBasedOnDependencies()
-        {
-            Mods.Sort((a, b) =>
-            {
-                if (a.Dependencies.Where(d => d.Instance == b).Any()) return 1;
-                if (b.Dependencies.Where(d => d.Instance == a).Any()) return -1;
-                return 0;
-            });
-        }
-
-        private void LogLoadedMods()
-        {
-            int codeModsCount = Mods.Count(mod => mod.IsCodeMod);
-            int assetModsCount = Mods.Count(mod => mod.IsAssetMod);
-
+        
             var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
-            var codeModsText = $"{codeModsCount} code mod{(codeModsCount != 1 ? "s" : "")}";
-            var assetModsText = $"{assetModsCount} asset mod{(assetModsCount != 1 ? "s" : "")}";
-
+            var codeModsText = $"{_codeMods.Count} code mod{(_codeMods.Count != 1 ? "s" : "")}";
+            var assetModsText = $"{_assetMods.Count} asset mod{(_assetMods.Count != 1 ? "s" : "")}";
             Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
-
-            Logger.Log("HAT", $"Mods in their order of appearance:");
-
+        
+            Logger.Log("HAT", "Mods in their order of appearance:");
             foreach (var mod in Mods)
             {
-                Logger.Log("HAT", $"  {mod.Info.Name} by {mod.Info.Author} version {mod.Info.Version}");
+                Logger.Log("HAT", $"  {mod.Metadata.Name} by {mod.Metadata.Author} version {mod.Metadata.Version}");
+            }
+        
+            #endregion
+        }
+
+        public void InitializeAssemblies()
+        {
+            foreach (var mod in _codeMods)
+            {
+                mod.Initialize(_fezGame);
             }
         }
 
-        internal void InitalizeAssemblies()
+        public void InitializeComponents()
         {
-            foreach (var mod in Mods)
-            {
-                mod.InitializeAssembly();
-            }
-            foreach (var mod in Mods)
-            {
-                mod.InitializeComponents();
-            }
-            Logger.Log("HAT", "Assembly initialization completed!");
-        }
-
-        internal List<Asset> GetFullAssetList()
-        {
-            var list = new List<Asset>();
-
-            foreach (var mod in Mods)
-            {
-                list.AddRange(mod.Assets);
-            }
-
-            return list;
-        }
-
-        internal void InitalizeComponents()
-        {
-            foreach(var mod in Mods)
+            foreach (var mod in _codeMods)
             {
                 mod.InjectComponents();
             }
-            Logger.Log("HAT", "Component initialization completed!");
+        }
+    
+        public List<Asset> GetFullAssetList()
+        {
+            return _assetMods.SelectMany(x => x.Assets).ToList();
         }
 
         public static void RegisterRequiredDependencyResolvers()
         {
             AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("MonoMod"));
             AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("FEZRepacker.Core"));
+        }
+
+        private static bool TryLoadMetadata(IFileProxy proxy, out Metadata metadata)
+        {
+            if (!proxy.FileExists(ModMetadataFile))
+            {
+                metadata = default;
+                return false;
+            }
+
+            try
+            {
+                using var stream = proxy.OpenFile(ModMetadataFile);
+                using var reader = new StreamReader(stream);
+
+                var serializer = new XmlSerializer(typeof(Metadata));
+                metadata = (Metadata)serializer.Deserialize(reader);
+                if (string.IsNullOrEmpty(metadata.Name) || metadata.Version == null)
+                {
+                    metadata = default;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("HAT", LogSeverity.Warning, $"Failed to load mod metadata: {ex.Message}");
+                metadata = default;
+                return false;
+            }
+        }
+
+        private static bool TryLoadAssets(IFileProxy proxy, Metadata metadata, out AssetMod assetMod)
+        {
+            var files = new Dictionary<string, Stream>();
+            foreach (var filePath in proxy.EnumerateFiles(AssetDirectoryName))
+            {
+                var relativePath = filePath.Substring(AssetDirectoryName.Length + 1).Replace("/", "\\").ToLower();
+                var fileStream = proxy.OpenFile(filePath);
+                files.Add(relativePath, fileStream);
+            }
+
+            var assets = AssetLoaderHelper.GetListFromFileDictionary(files);
+            if (proxy.FileExists(AssetPakName))
+            {
+                using var pakPackage = proxy.OpenFile(AssetPakName);
+                assets.AddRange(AssetLoaderHelper.LoadPakPackage(pakPackage));
+            }
+
+            if (assets.Count < 1)
+            {
+                assetMod = null;
+                return false;
+            }
+
+            assetMod = new AssetMod(proxy, metadata, assets);
+            return true;
+        }
+
+        private static bool TryLoadAssembly(IFileProxy proxy, Metadata metadata, out CodeMod codeMod)
+        {
+            if (string.IsNullOrEmpty(metadata.LibraryName) ||
+                !metadata.LibraryName.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) ||
+                !proxy.FileExists(metadata.LibraryName))
+            {
+                codeMod = null;
+                return false;
+            }
+
+            using var assemblyStream = proxy.OpenFile(metadata.LibraryName);
+            var rawAssembly = new byte[assemblyStream.Length];
+            var count = assemblyStream.Read(rawAssembly, 0, rawAssembly.Length);
+
+            if (rawAssembly.Length != count)
+            {
+                codeMod = null;
+                return false;
+            }
+
+            codeMod = new CodeMod(proxy, metadata, rawAssembly);
+            return true;
+        }
+
+        private static IList<string> InitializeIgnoredModsList()
+        {
+            var ignoredModsNamesFilePath = Path.Combine(ModsDirectory, "ignorelist.txt");
+            const string defaultContent =
+                "# List of directories and zip archives to ignore when loading mods, one per line.\n" +
+                "# Lines starting with # will be ignored.\n\n" +
+                "ExampleDirectoryModName\n" +
+                "ExampleZipPackageName.zip\n";
+            return ModsTextListLoader.LoadOrCreateDefault(ignoredModsNamesFilePath, defaultContent);
+        }
+
+        private static IList<string> InitializePriorityList()
+        {
+            var priorityListFilePath = Path.Combine(ModsDirectory, "prioritylist.txt");
+            const string defaultContent = "# List of directories and zip archives to prioritize during mod loading.\n" +
+                                          "# If present on this list, the mod will be loaded before other mods not listed here or listed below it,\n" +
+                                          "# including newer versions of the same mod. However, it does not override dependency ordering.\n" +
+                                          "# Lines starting with # will be ignored.\n\n" +
+                                          "ExampleDirectoryModName\n" +
+                                          "ExampleZipPackageName.zip\n";
+            return ModsTextListLoader.LoadOrCreateDefault(priorityListFilePath, defaultContent);
+        }
+
+        private static int GetPriorityIndex(IFileProxy proxy)
+        {
+            var index = PriorityModNames.IndexOf(proxy.ContainerName);
+            if (index == -1) index = int.MaxValue;
+            return index;
         }
     }
 }
