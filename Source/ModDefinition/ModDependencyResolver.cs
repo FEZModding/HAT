@@ -4,7 +4,7 @@ namespace HatModLoader.Source.ModDefinition
     {
         private const string HatDependencyName = "HAT";
 
-        public static ResolverResult Resolve(IList<CodeMod> mods)
+        public static ResolverResult Resolve(IList<ModIdentity> mods)
         {
             var graph = new ModDependencyGraph();
             var rejected = new List<ModDependencyGraph.Node>();
@@ -42,7 +42,7 @@ namespace HatModLoader.Source.ModDefinition
             return new ResolverResult(loadOrder, invalid);
         }
 
-        private static ModDependencyStatus ValidateHatDependency(CodeMod mod, out string details)
+        private static ModDependencyStatus ValidateHatDependency(ModIdentity mod, out string details)
         {
             var deps = mod.Metadata.Dependencies;
             if (deps == null)
@@ -95,9 +95,9 @@ namespace HatModLoader.Source.ModDefinition
             }
         }
 
-        private static List<CodeMod> TopologicalSort(ModDependencyGraph graph)
+        private static List<ModIdentity> TopologicalSort(ModDependencyGraph graph)
         {
-            var result = new List<CodeMod>();
+            var result = new List<ModIdentity>();
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var path = new List<ModDependencyGraph.Node>();
             var pathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -222,11 +222,11 @@ namespace HatModLoader.Source.ModDefinition
 
     public class ResolverResult
     {
-        public List<CodeMod> LoadOrder { get; }
+        public List<ModIdentity> LoadOrder { get; }
         
         public List<ModDependencyGraph.Node> Invalid { get; }
 
-        public ResolverResult(List<CodeMod> loadOrder, List<ModDependencyGraph.Node> invalid)
+        public ResolverResult(List<ModIdentity> loadOrder, List<ModDependencyGraph.Node> invalid)
         {
             LoadOrder = loadOrder;
             Invalid = invalid;

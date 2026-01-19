@@ -6,11 +6,11 @@ namespace HatModLoader.Source.AssemblyResolving
 {
     internal class ModInternalAssemblyResolver : IAssemblyResolver
     {
-        private readonly CodeMod _mod;
+        private readonly ModIdentity _mod;
 
         private readonly Dictionary<AssemblyName, string> _cachedAssemblyPaths = new();
         
-        public ModInternalAssemblyResolver(CodeMod mod)
+        public ModInternalAssemblyResolver(ModIdentity mod)
         {
             _mod = mod;
             CacheAssemblyPaths();
@@ -18,9 +18,9 @@ namespace HatModLoader.Source.AssemblyResolving
         
         public Assembly ProvideAssembly(object sender, ResolveEventArgs args)
         {
-            if (_mod.Assembly != null && _mod.Assembly.GetName().MatchesRequest(args, false))
+            if (_mod.CodeMod != null && _mod.CodeMod.Assembly.GetName().MatchesRequest(args, false))
             {
-                return _mod.Assembly;
+                return _mod.CodeMod.Assembly;
             }
             
             foreach(var assemblyName in _cachedAssemblyPaths.Keys)

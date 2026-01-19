@@ -6,24 +6,16 @@ using Microsoft.Xna.Framework;
 
 namespace HatModLoader.Source.ModDefinition
 {
-    public class CodeMod : IMod
+    public class CodeMod
     {
-        public IFileProxy FileProxy { get; }
-
-        public Metadata Metadata { get; }
-
         public byte[] RawAssembly { get; }
-    
+
         public Assembly Assembly { get; private set; }
 
-        private List<GameComponent> Components { get; set; }
-    
-        private IAssemblyResolver _assemblyResolver;
+        public List<GameComponent> Components { get; private set; }
 
-        public CodeMod(IFileProxy fileProxy, Metadata metadata, byte[] rawAssembly)
+        private CodeMod(byte[] rawAssembly)
         {
-            FileProxy = fileProxy;
-            Metadata = metadata;
             RawAssembly = rawAssembly;
         }
 
@@ -38,12 +30,10 @@ namespace HatModLoader.Source.ModDefinition
             {
                 throw new InvalidOperationException("Assembly is already loaded.");
             }
-        
-            _assemblyResolver = new ModInternalAssemblyResolver(this);
-            AssemblyResolverRegistry.Register(_assemblyResolver);
+            
             Assembly = Assembly.Load(RawAssembly);
-
             Components = [];
+            
             foreach (var type in Assembly.GetExportedTypes())
             {
                 if (typeof(GameComponent).IsAssignableFrom(type) && type.IsPublic && !type.IsAbstract)
@@ -55,22 +45,28 @@ namespace HatModLoader.Source.ModDefinition
             }
         }
 
-        public void InjectComponents()
+        public static bool TryLoad(IFileProxy proxy, Metadata metadata, out CodeMod codeMod)
         {
-            foreach (var component in Components)
+            if (string.IsNullOrEmpty(metadata.LibraryName) ||
+                !metadata.LibraryName.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) ||
+                !proxy.FileExists(metadata.LibraryName))
             {
-                ServiceHelper.AddComponent(component);
-            }
-        }
-
-        public void Dispose()
-        {
-            foreach (var component in Components)
-            {
-                ServiceHelper.RemoveComponent(component);
+                codeMod = null;
+                return false;
             }
 
-            AssemblyResolverRegistry.Unregister(_assemblyResolver);
+            using var assemblyStream = proxy.OpenFile(metadata.LibraryName);
+            var rawAssembly = new byte[assemblyStream.Length];
+            var count = assemblyStream.Read(rawAssembly, 0, rawAssembly.Length);
+
+            if (rawAssembly.Length != count)
+            {
+                codeMod = null;
+                return false;
+            }
+
+            codeMod = new CodeMod(rawAssembly);
+            return true;
         }
     }
 }
