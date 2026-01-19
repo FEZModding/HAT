@@ -1,5 +1,4 @@
-﻿using System.Xml.Serialization;
-using Common;
+﻿using Common;
 using FezGame;
 using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.Assets;
@@ -117,7 +116,7 @@ namespace HatModLoader.Source
 
         private void ResolveDependencies(IList<ModIdentity> mods)
         {
-            var resolverResult = ModDependencyResolver.Resolve(mods);
+            var resolverResult = ModDependencyResolver.Resolve(mods, PriorityModNames);
             Mods = resolverResult.LoadOrder;
             InvalidModsCount = resolverResult.Invalid.Count;
             
@@ -207,13 +206,6 @@ namespace HatModLoader.Source
                                           "ExampleDirectoryModName\n" +
                                           "ExampleZipPackageName.zip\n";
             return ModsTextListLoader.LoadOrCreateDefault(priorityListFilePath, defaultContent);
-        }
-
-        private static int GetPriorityIndex(IFileProxy proxy)
-        {
-            var index = PriorityModNames.IndexOf(proxy.ContainerName);
-            if (index == -1) index = int.MaxValue;
-            return index;
         }
     }
 }

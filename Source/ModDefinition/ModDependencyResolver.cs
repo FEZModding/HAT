@@ -1,10 +1,12 @@
+using HatModLoader.Source.FileProxies;
+
 namespace HatModLoader.Source.ModDefinition
 {
     public static class ModDependencyResolver
     {
         private const string HatDependencyName = "HAT";
 
-        public static ResolverResult Resolve(IList<ModIdentity> mods)
+        public static ResolverResult Resolve(IList<ModIdentity> mods, IList<string> priorityList)
         {
             var graph = new ModDependencyGraph();
             var rejected = new List<ModDependencyGraph.Node>();
@@ -32,7 +34,7 @@ namespace HatModLoader.Source.ModDefinition
             }
 
             // Topological sort with cycle detection
-            var loadOrder = TopologicalSort(graph);
+            var loadOrder = TopologicalSort(graph, priorityList);
 
             // Collect invalid nodes
             var invalid = rejected
@@ -95,7 +97,7 @@ namespace HatModLoader.Source.ModDefinition
             }
         }
 
-        private static List<ModIdentity> TopologicalSort(ModDependencyGraph graph)
+        private static List<ModIdentity> TopologicalSort(ModDependencyGraph graph, IList<string> priorityList)
         {
             var result = new List<ModIdentity>();
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -103,7 +105,12 @@ namespace HatModLoader.Source.ModDefinition
             var pathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<Progress>();
 
-            foreach (var startNode in graph.Nodes)
+            // Order nodes by priority list to influence traversal order
+            var orderedNodes = graph.Nodes
+                .OrderBy(n => GetPriority(n.Mod.FileProxy, priorityList))
+                .ToList();
+
+            foreach (var startNode in orderedNodes)
             {
                 if (startNode.Status != ModDependencyStatus.Valid || visited.Contains(startNode.Mod.Metadata.Name))
                 {
@@ -160,7 +167,11 @@ namespace HatModLoader.Source.ModDefinition
                     pathSet.Add(name);
                     stack.Push(new Progress(node, true));
 
-                    foreach (var dep in node.Dependencies)
+                    var orderedDeps = node.Dependencies
+                        .OrderByDescending(dep => GetPriority(dep.Mod.FileProxy, priorityList)) // because of LIFO
+                        .ToList();
+
+                    foreach (var dep in orderedDeps)
                     {
                         if (!visited.Contains(dep.Mod.Metadata.Name))
                         {
@@ -171,6 +182,16 @@ namespace HatModLoader.Source.ModDefinition
             }
 
             return result;
+        }
+
+        private static int GetPriority(IFileProxy proxy, IList<string> priorityList)
+        {
+            var index = priorityList
+                .Select((name, i) => new { name, i })
+                .FirstOrDefault(x => string.Equals(x.name, proxy.ContainerName, StringComparison.OrdinalIgnoreCase))
+                ?.i;
+
+            return index ?? int.MaxValue; // Unlisted mods go last
         }
 
         private static void MarkCycle(ModDependencyGraph.Node cycleNode, List<ModDependencyGraph.Node> path)
