@@ -58,12 +58,14 @@ namespace HatModLoader.Source
             InitializePriorityList();
 
             RemoveBlacklistedMods();
-            SortModsByPriority();
-            RemoveDuplicates();
-            InitializeDependencies();
-            FilterOutInvalidMods();
-            SortModsBasedOnDependencies();
-
+            if (Mods.Count > 0)
+            {
+                SortModsByPriority();
+                RemoveDuplicates();
+                InitializeDependencies();
+                FilterOutInvalidMods();
+                SortModsBasedOnDependencies();
+            }
             LogLoadedMods();
         }
 
@@ -234,6 +236,10 @@ namespace HatModLoader.Source
 
         private void FinalizeDependencies()
         {
+            if (Mods.Count == 0)
+            {
+                return;
+            }
             for(int i=0;i<=Mods.Count; i++)
             {
                 if(i == Mods.Count)
