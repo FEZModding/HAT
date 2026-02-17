@@ -6,7 +6,7 @@ namespace HatModLoader.Source.ModDefinition
     {
         private const string HatDependencyName = "HAT";
 
-        public static ResolverResult Resolve(IList<ModIdentity> mods, IList<string> priorityList)
+        public static ResolverResult Resolve(IList<ModContainer> mods, IList<string> priorityList)
         {
             var graph = new ModDependencyGraph();
             var rejected = new List<ModDependencyGraph.Node>();
@@ -44,7 +44,7 @@ namespace HatModLoader.Source.ModDefinition
             return new ResolverResult(loadOrder, invalid);
         }
 
-        private static ModDependencyStatus ValidateHatDependency(ModIdentity mod, out string details)
+        private static ModDependencyStatus ValidateHatDependency(ModContainer mod, out string details)
         {
             var deps = mod.Metadata.Dependencies;
             if (deps == null)
@@ -97,9 +97,9 @@ namespace HatModLoader.Source.ModDefinition
             }
         }
 
-        private static List<ModIdentity> TopologicalSort(ModDependencyGraph graph, IList<string> priorityList)
+        private static List<ModContainer> TopologicalSort(ModDependencyGraph graph, IList<string> priorityList)
         {
-            var result = new List<ModIdentity>();
+            var result = new List<ModContainer>();
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var path = new List<ModDependencyGraph.Node>();
             var pathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -243,11 +243,11 @@ namespace HatModLoader.Source.ModDefinition
 
     public class ResolverResult
     {
-        public List<ModIdentity> LoadOrder { get; }
+        public List<ModContainer> LoadOrder { get; }
         
         public List<ModDependencyGraph.Node> Invalid { get; }
 
-        public ResolverResult(List<ModIdentity> loadOrder, List<ModDependencyGraph.Node> invalid)
+        public ResolverResult(List<ModContainer> loadOrder, List<ModDependencyGraph.Node> invalid)
         {
             LoadOrder = loadOrder;
             Invalid = invalid;

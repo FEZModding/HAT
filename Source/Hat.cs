@@ -17,7 +17,7 @@ namespace HatModLoader.Source
 
         private static readonly IList<string> PriorityModNames = InitializePriorityList();
 
-        public List<ModIdentity> Mods { get; private set; }
+        public List<ModContainer> Mods { get; private set; }
 
         public int InvalidModsCount { get; private set; }
 
@@ -94,14 +94,14 @@ namespace HatModLoader.Source
             return true;
         }
 
-        private static bool GetModList(in IEnumerable<IFileProxy> proxies, out IList<ModIdentity> mods)
+        private static bool GetModList(in IEnumerable<IFileProxy> proxies, out IList<ModContainer> mods)
         {
-            mods = new List<ModIdentity>();
+            mods = new List<ModContainer>();
             foreach (var proxy in proxies.Where(fp => !IgnoredModNames.Contains(fp.ContainerName)))
             {
                 if (Metadata.TryLoad(proxy, out var metadata))
                 {
-                    mods.Add(new ModIdentity(proxy, metadata));
+                    mods.Add(new ModContainer(proxy, metadata));
                 }
             }
 
@@ -114,7 +114,7 @@ namespace HatModLoader.Source
             return true;
         }
 
-        private void ResolveDependencies(IList<ModIdentity> mods)
+        private void ResolveDependencies(IList<ModContainer> mods)
         {
             var resolverResult = ModDependencyResolver.Resolve(mods, PriorityModNames);
             Mods = resolverResult.LoadOrder;

@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework;
 
 namespace HatModLoader.Source.ModDefinition;
 
-public class ModIdentity : IDisposable
+public class ModContainer : IDisposable
 {
     public IFileProxy FileProxy { get; }
 
@@ -18,7 +18,7 @@ public class ModIdentity : IDisposable
     
     private IAssemblyResolver _assemblyResolver;
 
-    public ModIdentity(IFileProxy fileProxy, Metadata metadata)
+    public ModContainer(IFileProxy fileProxy, Metadata metadata)
     {
         FileProxy = fileProxy;
         Metadata = metadata;

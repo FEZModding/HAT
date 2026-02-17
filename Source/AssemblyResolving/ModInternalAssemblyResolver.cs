@@ -6,11 +6,11 @@ namespace HatModLoader.Source.AssemblyResolving
 {
     internal class ModInternalAssemblyResolver : IAssemblyResolver
     {
-        private readonly ModIdentity _mod;
+        private readonly ModContainer _mod;
 
         private readonly Dictionary<AssemblyName, string> _cachedAssemblyPaths = new();
         
-        public ModInternalAssemblyResolver(ModIdentity mod)
+        public ModInternalAssemblyResolver(ModContainer mod)
         {
             _mod = mod;
             CacheAssemblyPaths();

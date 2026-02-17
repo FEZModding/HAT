@@ -4,7 +4,7 @@ namespace HatModLoader.Source.ModDefinition
     {
         private readonly Dictionary<string, Node> _nodes = new(StringComparer.OrdinalIgnoreCase);
 
-        public void AddNode(ModIdentity mod)
+        public void AddNode(ModContainer mod)
         {
             var name = mod.Metadata.Name;
             if (_nodes.TryGetValue(name, out var existing))
@@ -29,7 +29,7 @@ namespace HatModLoader.Source.ModDefinition
 
         public class Node
         {
-            public ModIdentity Mod { get; }
+            public ModContainer Mod { get; }
             
             public List<Node> Dependencies { get; } = [];
             
@@ -37,7 +37,7 @@ namespace HatModLoader.Source.ModDefinition
 
             public string Details { get; private set; }
 
-            public Node(ModIdentity mod)
+            public Node(ModContainer mod)
             {
                 Mod = mod;
             }
