@@ -61,7 +61,7 @@ namespace HatModLoader.Source.ModDefinition
             }
             catch (Exception ex)
             {
-                Logger.Log("HAT", LogSeverity.Warning, $"Failed to load mod metadata: {ex.Message}");
+                Logger.Log("HAT", LogSeverity.Warning, $"Failed to load mod metadata \"{proxy.ContainerName}\": {ex.Message}");
                 metadata = default;
                 return false;
             }
