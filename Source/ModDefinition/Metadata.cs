@@ -15,7 +15,7 @@ namespace HatModLoader.Source.ModDefinition
 
         public string Author { get; set; }
 
-        [XmlIgnore] public Version Version { get; set; }
+        [XmlIgnore] public Version Version { get; private set; }
 
         [XmlElement("Version")]
         public string VersionString
@@ -70,7 +70,7 @@ namespace HatModLoader.Source.ModDefinition
         {
             [XmlAttribute] public string Name { get; set; }
 
-            [XmlIgnore] public Version MinimumVersion { get; set; }
+            [XmlIgnore] public Version MinimumVersion { get; private set; }
 
             [XmlAttribute("MinimumVersion")]
             public string MinimumVersionString

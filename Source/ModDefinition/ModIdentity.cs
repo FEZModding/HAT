@@ -12,9 +12,9 @@ public class ModIdentity : IDisposable
 
     public Metadata Metadata { get; }
     
-    public AssetMod AssetMod { get; set; }
+    public AssetMod AssetMod { get; internal set; }
     
-    public CodeMod CodeMod { get; set; }
+    public CodeMod CodeMod { get; internal set; }
     
     private IAssemblyResolver _assemblyResolver;
 

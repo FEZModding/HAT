@@ -23,7 +23,7 @@ namespace HatModLoader.Source.ModDefinition
         {
             if (RawAssembly == null || RawAssembly.Length < 1)
             {
-                throw new ArgumentNullException(nameof(RawAssembly), "There's not raw assembly data.");
+                throw new ArgumentNullException(nameof(RawAssembly), "There's no raw assembly data.");
             }
 
             if (Assembly != null)
