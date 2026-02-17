@@ -38,6 +38,7 @@ namespace HatModLoader.Source.ModDefinition
         {
             if (!proxy.FileExists(ModMetadataFile))
             {
+                Logger.Log("HAT", LogSeverity.Warning, $"No mod metadata found in \"{proxy.ContainerName}\"");
                 metadata = default;
                 return false;
             }
@@ -51,6 +52,7 @@ namespace HatModLoader.Source.ModDefinition
                 metadata = (Metadata)serializer.Deserialize(reader);
                 if (string.IsNullOrEmpty(metadata.Name) || metadata.Version == null)
                 {
+                    Logger.Log("HAT", LogSeverity.Warning, $"Invalid mod metadata in \"{proxy.ContainerName}\"");
                     metadata = default;
                     return false;
                 }
