@@ -47,10 +47,19 @@ namespace HatModLoader.Source.ModDefinition
         private static ModDependencyStatus ValidateHatDependency(ModContainer mod, out string details)
         {
             var deps = mod.Metadata.Dependencies;
-            if (deps == null)
+            if (deps == null || deps.Length == 0)
             {
-                details = "No dependencies declared, HAT dependency required";
-                return ModDependencyStatus.InvalidNotFound;
+                // NOTE:
+                // The earliest HAT mods may not have an explicitly specified HAT version in their metadata.
+                // If it is not specified, HAT version 1.0 is assumed by default.
+                deps = new[]
+                {
+                    new Metadata.DependencyInfo
+                    {
+                        Name = HatDependencyName,
+                        MinimumVersionString = "1.0"
+                    }
+                };
             }
 
             var hatDependency = deps.FirstOrDefault(d => IsHatDependency(d.Name));
