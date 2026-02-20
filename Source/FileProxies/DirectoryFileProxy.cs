@@ -1,4 +1,6 @@
-﻿namespace HatModLoader.Source.FileProxies
+﻿using System.Reflection;
+
+namespace HatModLoader.Source.FileProxies
 {
     internal class DirectoryFileProxy : IFileProxy
     {
@@ -35,6 +37,30 @@
         public Stream OpenFile(string localPath)
         {
             return File.OpenRead(Path.Combine(modDirectory, localPath));
+        }
+
+        public IntPtr LoadLibrary(string localPath)
+        {
+            return NativeLibraryInterop.Load(Path.Combine(modDirectory, localPath));
+        }
+
+        public void UnloadLibrary(IntPtr handle)
+        {
+            NativeLibraryInterop.Free(handle);
+        }
+
+        public bool IsDotNetAssembly(string localPath)
+        {
+            try
+            {
+                var fullPath = Path.Combine(modDirectory, localPath);
+                AssemblyName.GetAssemblyName(fullPath);
+                return true;
+            }
+            catch (BadImageFormatException)
+            {
+                return false;   // Native library file
+            }
         }
 
         public void Dispose() { }
