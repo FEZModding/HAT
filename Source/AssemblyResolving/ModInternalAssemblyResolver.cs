@@ -56,8 +56,9 @@ namespace HatModLoader.Source.AssemblyResolving
             foreach (var file in _mod.FileProxy.EnumerateFiles(""))
             {
                 if (
-                    file.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || 
-                    file.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    (file.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || 
+                    file.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) &&
+                    _mod.FileProxy.IsDotNetAssembly(file)
                 ) {
                     yield return file;
                 }

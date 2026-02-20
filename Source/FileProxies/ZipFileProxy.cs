@@ -1,4 +1,5 @@
 ﻿using System.IO.Compression;
+using System.Reflection;
 
 namespace HatModLoader.Source.FileProxies
 {
@@ -6,6 +7,7 @@ namespace HatModLoader.Source.FileProxies
     {
         private ZipArchive archive;
         private string zipPath;
+        private readonly Dictionary<IntPtr, string> tempFiles = []; 
         public string RootPath => zipPath;
         public string ContainerName => Path.GetFileName(zipPath);
 
@@ -32,6 +34,56 @@ namespace HatModLoader.Source.FileProxies
         public Stream OpenFile(string localPath)
         {
             return archive.Entries.Where(e => e.FullName == localPath).First().Open();
+        }
+
+        private ZipArchiveEntry GetEntry(string localPath)
+        {
+            return archive.Entries.FirstOrDefault(e => e.FullName == localPath);
+        }
+        
+        public IntPtr LoadLibrary(string localPath)
+        {
+            var tempFile = Path.GetTempFileName();
+            var entry = GetEntry(localPath);
+            entry.ExtractToFile(tempFile, true);
+
+            var handle = NativeLibraryInterop.Load(tempFile);
+            if (handle != IntPtr.Zero)
+            {
+                tempFiles.Add(handle, tempFile);
+            }
+            
+            return handle;
+        }
+
+        public void UnloadLibrary(IntPtr handle)
+        {
+            if (tempFiles.TryGetValue(handle, out var tempFile))
+            {
+                NativeLibraryInterop.Free(handle);
+                File.Delete(tempFile);
+                tempFiles.Remove(handle);
+            }
+        }
+
+        public bool IsDotNetAssembly(string localPath)
+        {
+            var tempFile = Path.GetTempFileName();
+            var result = true;
+            
+            try
+            {
+                var entry = GetEntry(localPath);
+                entry.ExtractToFile(tempFile, true);
+                AssemblyName.GetAssemblyName(tempFile);
+            }
+            catch (BadImageFormatException)
+            {
+                result = false;     // Native library file
+            }
+            
+            File.Delete(tempFile);
+            return result;
         }
 
         public void Dispose()
