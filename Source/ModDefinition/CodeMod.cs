@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Common;
 using FezEngine.Tools;
 using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.FileProxies;
@@ -19,7 +20,7 @@ namespace HatModLoader.Source.ModDefinition
             RawAssembly = rawAssembly;
         }
 
-        public void Initialize(Game game)
+        public void Initialize(Game game, string entrypoint)
         {
             if (RawAssembly == null || RawAssembly.Length < 1)
             {
@@ -33,8 +34,27 @@ namespace HatModLoader.Source.ModDefinition
             
             Assembly = Assembly.Load(RawAssembly);
             Components = [];
+
+            Type[] types;
+            if (!string.IsNullOrEmpty(entrypoint))
+            {
+                if (!Assembly.GetTypes().Any(t => t.FullName?.Equals(entrypoint) ?? false))
+                {
+                    throw new ArgumentException($"The entrypoint name is not a fully qualified name: {entrypoint}");
+                }
+                
+                // Entrypoint class may load other components (services) via Game.Components (Game.Services)
+                Logger.Log("HAT", LogSeverity.Information, $"Starting at entrypoint {entrypoint}.");
+                types = [Assembly.GetType(entrypoint)];
+            }
+            else
+            {
+                // Use backward compatible method
+                Logger.Log("HAT", LogSeverity.Warning, "No entrypoint was specified. Loading all public components...");
+                types = Assembly.GetExportedTypes();
+            }
             
-            foreach (var type in Assembly.GetExportedTypes())
+            foreach (var type in types)
             {
                 if (typeof(GameComponent).IsAssignableFrom(type) && type.IsPublic && !type.IsAbstract)
                 {
