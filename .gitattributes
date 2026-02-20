@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# ensure sh/bash files are unix-compatible 
+*.sh text eol=lf
