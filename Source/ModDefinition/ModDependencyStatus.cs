@@ -2,7 +2,6 @@
 {
     public enum ModDependencyStatus
     {
-        None,
         Valid,
         InvalidVersion,
         InvalidNotFound,

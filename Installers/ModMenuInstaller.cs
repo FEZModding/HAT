@@ -105,10 +105,10 @@ namespace HatModLoader.Installers
             else
             {
                 AddInactiveStringItem(null, null);
-                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Name);
-                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Info.Description);
-                AddInactiveStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Info.Author}");
-                AddInactiveStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Info.Version}");
+                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Metadata.Name);
+                AddInactiveStringItem(null, () => Hat.Instance.Mods[modMenuCurrentIndex].Metadata.Description);
+                AddInactiveStringItem(null, () => $"made by {Hat.Instance.Mods[modMenuCurrentIndex].Metadata.Author}");
+                AddInactiveStringItem(null, () => $"version {Hat.Instance.Mods[modMenuCurrentIndex].Metadata.Version}");
             }
 
             // add created menu level to the main menu

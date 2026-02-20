@@ -146,7 +146,7 @@ namespace FezGame.Components
             Viewport viewport = DrawingTools.GetViewport();
 
             int modCount = Hat.Instance.Mods.Count;
-            string hatText = $"HAT Mod Loader, version {Hat.Version}, {modCount} mod{(modCount != 1 ? "s" : "")} installed";
+            string hatText = $"HAT Mod Loader, version {Hat.VersionString}, {modCount} mod{(modCount != 1 ? "s" : "")} installed";
             if (modCount == 69) hatText += "... nice";
 
             Color textColor = Color.Lerp(Color.White, Color.Black, alpha);
@@ -154,7 +154,7 @@ namespace FezGame.Components
 
             float lineHeight = DrawingTools.DefaultFont.LineSpacing * DrawingTools.DefaultFontSize;
 
-            int invalidModCount = Hat.Instance.InvalidMods.Count;
+            int invalidModCount = Hat.Instance.InvalidModsCount;
             string invalidModsText = $"Could not load {invalidModCount} mod{(invalidModCount != 1 ? "s" : "")}. Check logs for more details.";
 
             DrawingTools.BeginBatch();
