@@ -30,7 +30,7 @@ public class ModContainer : IDisposable
         {
             _assemblyResolver = new ModInternalAssemblyResolver(this);
             AssemblyResolverRegistry.Register(_assemblyResolver);
-            CodeMod?.Initialize(game);
+            CodeMod?.Initialize(game, Metadata.Entrypoint);
         }
     }
 

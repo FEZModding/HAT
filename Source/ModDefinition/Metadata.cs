@@ -31,6 +31,8 @@ namespace HatModLoader.Source.ModDefinition
         }
 
         public string LibraryName { get; set; }
+        
+        public string Entrypoint { get; set; }
 
         public DependencyInfo[] Dependencies { get; set; }
         
