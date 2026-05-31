@@ -37,7 +37,7 @@ namespace HatModLoader.Source.ModDefinition
                 .Where(f =>
                 {
                     var existing = _assets.FirstOrDefault(a => 
-                        !_pakAssetPaths.Contains(a.AssetPath) && f.RawPath.StartsWith(a.SourcePath));
+                        !_pakAssetPaths.Contains(a.AssetPath) && f.RawPath.StartsWith(a.SourcePath + "."));
                     return existing == null || f.Timestamp > existing.LastModified;
                 })
                 .ToList();
@@ -58,7 +58,7 @@ namespace HatModLoader.Source.ModDefinition
             // Removed loose files
             var removedLoose = _assets
                 .Where(a => !_pakAssetPaths.Contains(a.AssetPath)
-                            && !currentRawPaths.Any(p => p.StartsWith(a.SourcePath)))
+                            && !currentRawPaths.Any(p => p.StartsWith(a.SourcePath + ".")))
                 .ToList();
             foreach (var asset in removedLoose)
             {
