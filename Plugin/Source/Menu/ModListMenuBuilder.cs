@@ -24,6 +24,7 @@ internal static class ModListMenuBuilder
             Oversized = true,
         });
 
+        _modListMenuHandler.LoopOver = true;
         _modListMenuHandler.NoThumbnail = true;
         _modListMenuHandler.NoItemsText = "@No HAT Mods Installed";
 

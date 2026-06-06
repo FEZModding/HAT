@@ -16,7 +16,9 @@ public class ListMenuHandler
     public Func<int> DefaultIndex;
     public Action<int> OnSelect;
     public string NoItemsText;
+    public string ScrollPrefix;
     public bool NoThumbnail;
+    public bool LoopOver;
     
     public MenuMediator.LevelTemplate LevelTemplate;
 
@@ -28,6 +30,10 @@ public class ListMenuHandler
     public void Initialize()
     {
         _selectionIndex = DefaultIndex?.Invoke() ?? 0;
+        if (_selectionIndex >= Items.Count)
+        {
+            _selectionIndex = 0;
+        }
         
         LevelTemplate.OnPostDraw += DrawSelectionThumbnail;
         LevelTemplate.OnReset += OnReset;
@@ -43,27 +49,47 @@ public class ListMenuHandler
         if (!NoThumbnail)
         {
             InitializeThumbnails();
-            LevelTemplate.AddPaddingLines(3 + Items.Count);
+            LevelTemplate.AddPaddingLines(2 + Items.Count);
         }
-        
+
         LevelTemplate.Items.Add(new MenuMediator.ItemTemplate
         {
             Getter = () => _selectionIndex,
-            Setter = (_, change) =>
-            {
-                int count = Items.Count;
-                _selectionIndex = (_selectionIndex + change + Items.Count) % count;
-            },
-            SuffixText = () => $"{_selectionIndex + 1} / {Items.Count}",
+            Setter = (_, change) => ChangeSelectionIndex(change),
+            SuffixText = GetScrollItemText,
             OnSelect = () => OnSelect?.Invoke(_selectionIndex),
             IsDefault = true,
         });
-
-        for (var i = 0; i < Items.Count; i++)
+        
+        var maxLabelsCount = Items.Max(item => item.Labels.Count);
+        for (var i = 0; i < maxLabelsCount; i++)
         {
             var labelIndex = i; // for lambda capture
             LevelTemplate.Items.Add(MenuMediator.ItemTemplate.DynamicLabel(() => GetLabelText(labelIndex)));
         }
+    }
+
+    private void ChangeSelectionIndex(int change)
+    {
+        int count = Items.Count;
+        _selectionIndex = LoopOver
+            ? (_selectionIndex + change + count) % count
+            : Math.Min(Math.Max(0, _selectionIndex + change), count - 1);
+    }
+
+    private string GetScrollItemText()
+    {
+        var scrollPrefix = !string.IsNullOrEmpty(ScrollPrefix) ? ScrollPrefix + " " : "";
+        
+        if (!string.IsNullOrEmpty(Items[_selectionIndex].CustomTitle))
+        {
+            return Items[_selectionIndex].CustomTitle;
+        }
+        
+        var firstNonCustomIndex = Items.FindIndex(i => string.IsNullOrEmpty(i.CustomTitle));
+        var displayIndex = _selectionIndex - firstNonCustomIndex + 1;
+        var displayItemCount = Items.Count - firstNonCustomIndex;
+        return $"{scrollPrefix}{displayIndex} / {displayItemCount}";
     }
     
     private void InitializeThumbnails()
@@ -142,7 +168,8 @@ public class ListMenuHandler
     
     public struct Item
     {
-        public string ThumbnailPath;
         public List<string> Labels;
+        public string ThumbnailPath;
+        public string CustomTitle;
     }
 }
