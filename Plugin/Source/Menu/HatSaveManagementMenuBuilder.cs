@@ -1,11 +1,13 @@
 ﻿using System.Globalization;
 using System.Reflection;
 using EasyStorage;
+using FezEngine.Components;
 using FezEngine.Tools;
 using FezGame;
 using FezGame.Services;
 using FezGame.Structure;
 using FezGame.Tools;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace HatModLoader.Source.Menu;
 
@@ -126,7 +128,6 @@ internal static class HatSaveManagementMenuBuilder
             else
             {
                 item.ThumbnailPath = $"Other Textures/map_screens/{slotInfo.LevelName}";
-                item.Labels.Add(slotInfo.WorldName);
                 item.Labels.Add(slotInfo.ExtraInformation);
             }
             
@@ -173,9 +174,10 @@ internal static class HatSaveManagementMenuBuilder
             return slotInfo;
         }
 
-        slotInfo.WorldName = "FEZ";
-        slotInfo.ExtraInformation = string.Format(CultureInfo.InvariantCulture, "({0:P1} - {1:dd\\.hh\\:mm})", new object[]
+        var worldName = "FEZ";
+        slotInfo.ExtraInformation = string.Format(CultureInfo.InvariantCulture, "{0} ({1:P1} - {2:dd\\.hh\\:mm})", new object[]
         {
+            worldName,
             (saveData.CubeShards + saveData.SecretCubes + saveData.PiecesOfHeart + saveData.CollectedParts / 8f) / 32f,
             new TimeSpan(saveData.PlayTime)
         });
@@ -268,6 +270,21 @@ internal static class HatSaveManagementMenuBuilder
         }
     }
 
+    private static void AppendSaveManagementWarningCallback(
+        MenuMediator.LevelTemplate levelTemplate, object saveManagementMenuLevel, string locString)
+    {
+        if (string.IsNullOrEmpty(locString))
+        {
+            return;
+        }
+
+        var spriteFont = ServiceHelper.Get<IFontManager>().Small;
+        levelTemplate.OnPostDraw += (batch, font, tr, alpha) => 
+            saveManagementMenuLevel.GetType()
+            .GetMethod("DrawWarning",  BindingFlags.NonPublic | BindingFlags.Instance)?
+            .Invoke(saveManagementMenuLevel, new object[] { batch, spriteFont, tr, alpha, locString });
+    }
+
     private static void OpenSaveManagementSubMenuForMode(object saveManagementMenuLevel, SelectionMode selectionMode)
     {
         var menuBase = saveManagementMenuLevel.GetType()
@@ -276,6 +293,17 @@ internal static class HatSaveManagementMenuBuilder
 
         var saveManagementMenuHandler = CreateMenuHandler(
             selectionMode, index => HandleSaveManagementAction(saveManagementMenuLevel, index, selectionMode));
+
+        AppendSaveManagementWarningCallback(
+            saveManagementMenuHandler.LevelTemplate, saveManagementMenuLevel, selectionMode switch
+            {
+                SelectionMode.Change => "SaveChangeWarning",
+                SelectionMode.Clear => "SaveClearWarning",
+                SelectionMode.CopyPickTarget => "SaveCopyWarning",
+                _ => ""
+            }
+        );
+        
         var menuLevel = MenuMediator.OpenSubMenuLevel(menuBase, saveManagementMenuHandler.LevelTemplate);
         saveManagementMenuHandler.MarkLevelForRebuilding(menuLevel);
     }
@@ -326,7 +354,6 @@ internal static class HatSaveManagementMenuBuilder
     {
         public bool Empty;
         public string LevelName;
-        public string WorldName;
         public string ExtraInformation;
     }
 }

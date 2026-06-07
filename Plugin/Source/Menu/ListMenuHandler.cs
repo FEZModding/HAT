@@ -70,6 +70,7 @@ public class ListMenuHandler : IDisposable
             Setter = (_, change) => ChangeSelectionIndex(change),
             SuffixText = GetScrollItemText,
             OnSelect = OnItemSelected,
+            Disabled = Items[_selectionIndex].Disabled,
             IsDefault = true,
         });
         

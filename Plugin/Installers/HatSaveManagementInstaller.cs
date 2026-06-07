@@ -1,6 +1,7 @@
 ﻿using FezGame;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
+using FezEngine.Components;
 using FezEngine.Tools;
 using FezGame.Services;
 using HatModLoader.Source.Menu;
@@ -50,6 +51,10 @@ namespace HatModLoader.Installers
                     self.GetType()
                         .GetField("initialized", BindingFlags.Instance | BindingFlags.NonPublic)?
                         .SetValue(self, true);
+                    
+                    self.GetType()
+                        .GetField("FontManager", BindingFlags.Instance | BindingFlags.NonPublic)?
+                        .SetValue(self, ServiceHelper.Get<IFontManager>());
                     
                     HatSaveManagementMenuBuilder.InitializeWithSaveManagementMenuLevel(self);
                 })
