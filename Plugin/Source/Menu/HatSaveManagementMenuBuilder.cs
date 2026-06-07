@@ -7,13 +7,12 @@ using FezGame;
 using FezGame.Services;
 using FezGame.Structure;
 using FezGame.Tools;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace HatModLoader.Source.Menu;
 
 internal static class HatSaveManagementMenuBuilder
 {
-    private const int MaxSaveSlotsCount = 32;
+    private const int MaxSaveSlotsCount = 64;
     
     private static int _pickedCopySlot = 0;
     private static readonly Dictionary<SelectionMode, ListMenuHandler> _listMenuHandlersCache = new();
@@ -256,6 +255,7 @@ internal static class HatSaveManagementMenuBuilder
                 if (gameState.SaveSlot == slot)
                 {
                     gameState.LoadSaveFile(gameState.Restart);
+                    SpeedRun.Dispose();
                     break;
                 }
                 ReturnToMainSaveManagementMenu(saveManagementMenuLevel);
@@ -267,19 +267,32 @@ internal static class HatSaveManagementMenuBuilder
                     // different to original - boot up save selection again
                     gameState.SaveSlot = -1;
                     gameState.Restart();
+                    SpeedRun.Dispose();
                     break;
                 }
                 ReturnToMainSaveManagementMenu(saveManagementMenuLevel);
                 break;
             case SelectionMode.Change:
-                gameState.SaveSlot = slot;
-                gameState.LoadSaveFile(delegate
+                void ReloadSave(int reloadedSlot)
                 {
-                    gameState.Save();
-                    gameState.SaveImmediately();
-                    gameState.Restart();
-                });
-                SpeedRun.Dispose();
+                    gameState.SaveSlot = reloadedSlot;
+                    gameState.LoadSaveFile(delegate
+                    {
+                        gameState.Save();
+                        gameState.SaveImmediately();
+                        gameState.Restart();
+                    });
+                    SpeedRun.Dispose();
+                }
+                
+                // different to original - open up world selection menu if opening empty slot
+                if (LoadSlot(slot) == null)
+                {
+                    WorldSelectionMenuBuilder.OpenSubMenu(() => ReloadSave(slot));
+                    break;
+                }
+
+                ReloadSave(slot);
                 break;
         }
     }
