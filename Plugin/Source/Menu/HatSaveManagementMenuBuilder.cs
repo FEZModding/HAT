@@ -21,7 +21,7 @@ internal static class HatSaveManagementMenuBuilder
     public static void InitializeWithSaveSelectionMenuLevel(object saveSelectionMenuLevel)
     {
         var saveSelectionMenuHandler = CreateMenuHandler(
-            SelectionMode.Load, index => InvokeChooseSaveSlot(saveSelectionMenuLevel, index));
+            SelectionMode.Load, index => HandleSaveSelectionAction(saveSelectionMenuLevel, index));
         
         MenuMediator.BuildMenuLevelObject(saveSelectionMenuHandler.LevelTemplate, saveSelectionMenuLevel);
     }
@@ -174,7 +174,7 @@ internal static class HatSaveManagementMenuBuilder
             return slotInfo;
         }
 
-        var worldName = "FEZ";
+        var worldName = Hat.Instance.Worlds.TryGetFromSave(saveData, out var world) ? world.DisplayName : "[MISSING]";
         slotInfo.ExtraInformation = string.Format(CultureInfo.InvariantCulture, "{0} ({1:P1} - {2:dd\\.hh\\:mm})", new object[]
         {
             worldName,
@@ -192,22 +192,31 @@ internal static class HatSaveManagementMenuBuilder
         return slotInfo;
     }
 
-    // save selection menu callbacks - bit hacky but easier than scrapping some of methods called in there
-    private static void InvokeChooseSaveSlot(object saveSelectionMenuLevel, int index)
+    private static void HandleSaveSelectionAction(object saveSelectionMenuLevel, int index)
     {
-        if (Fez.SpeedRunMode)
+        var speedrunModSelected = Fez.SpeedRunMode && index == 0;
+        if (speedrunModSelected)
         {
-            index -= 1;
-        }
-
-        if (index < 0)
-        {
-            saveSelectionMenuLevel.GetType()?
-                .GetMethod("BeginSpeedRun", BindingFlags.Instance | BindingFlags.NonPublic)?
-                .Invoke(saveSelectionMenuLevel, null);
+            WorldSelectionMenuBuilder.OpenSubMenu(() => InvokeBeginSpeedRun(saveSelectionMenuLevel));
             return;
         }
         
+        var slotIndex = Fez.SpeedRunMode ? index -1 : index;
+
+        if (LoadSlot(slotIndex) == null)
+        {
+            ServiceHelper.Get<IGameStateManager>().SaveSlot = slotIndex;
+            WorldSelectionMenuBuilder.OpenSubMenu(() => InvokeChooseSaveSlot(saveSelectionMenuLevel, slotIndex));
+        }
+        else
+        {
+            InvokeChooseSaveSlot(saveSelectionMenuLevel, index);
+        }
+    }
+    
+    // save selection menu callbacks - bit hacky but easier than scrapping some of methods called in there
+    private static void InvokeChooseSaveSlot(object saveSelectionMenuLevel, int index)
+    {
         // ChooseSaveSlot takes SaveSlotInfo as an argument, but uses just index anyway, so dummy object works just fine
         var saveSlotInfoType = Assembly.GetAssembly(typeof(Fez))
             .GetType("FezGame.Structure.SaveSlotInfo");
@@ -217,6 +226,13 @@ internal static class HatSaveManagementMenuBuilder
         saveSelectionMenuLevel.GetType()?
             .GetMethod("ChooseSaveSlot", BindingFlags.NonPublic | BindingFlags.Instance)?
             .Invoke(saveSelectionMenuLevel, new[] { saveSlotInfo });
+    }
+
+    private static void InvokeBeginSpeedRun(object saveSelectionMenuLevel)
+    {
+        saveSelectionMenuLevel.GetType()?
+            .GetMethod("BeginSpeedRun", BindingFlags.Instance | BindingFlags.NonPublic)?
+            .Invoke(saveSelectionMenuLevel, null);
     }
 
     // reimplementation of SaveManagementLevel.ChooseSaveSlot - here it's easier than trying to hack it like above

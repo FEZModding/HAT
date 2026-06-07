@@ -33,6 +33,7 @@ public static class MenuMediator
     private static FieldInfo _menuLevelItemsField;
     
     public static event Action<object> MenuInitialized;
+    public static object CurrentMenuBase { get; private set; }
     
     static MenuMediator()
     {
@@ -78,6 +79,7 @@ public static class MenuMediator
     
     internal static void OnMenuInitialized(object menuBase)
     {
+        CurrentMenuBase = menuBase;
         _menuLevelType.GetField("IsDynamic").SetValue(GetMenuRoot(menuBase), true);
         MenuInitialized?.Invoke(menuBase);
         
