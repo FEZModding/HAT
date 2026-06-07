@@ -210,7 +210,7 @@ internal static class HatSaveManagementMenuBuilder
         }
         else
         {
-            InvokeChooseSaveSlot(saveSelectionMenuLevel, index);
+            InvokeChooseSaveSlot(saveSelectionMenuLevel, slotIndex);
         }
     }
     
@@ -252,6 +252,7 @@ internal static class HatSaveManagementMenuBuilder
                     break;
                 }
                 SaveSlot(slot, saveData);
+                // different to original - restart save file if we've just modified it.
                 if (gameState.SaveSlot == slot)
                 {
                     gameState.LoadSaveFile(gameState.Restart);
@@ -263,12 +264,9 @@ internal static class HatSaveManagementMenuBuilder
                 ClearSlot(slot);
                 if (gameState.SaveSlot == slot)
                 {
-                    gameState.LoadSaveFile(delegate
-                    {
-                        gameState.Save();
-                        gameState.SaveImmediately();
-                        gameState.Restart();
-                    });
+                    // different to original - boot up save selection again
+                    gameState.SaveSlot = -1;
+                    gameState.Restart();
                     break;
                 }
                 ReturnToMainSaveManagementMenu(saveManagementMenuLevel);
