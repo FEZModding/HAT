@@ -1,4 +1,5 @@
 ﻿using FezEngine.Tools;
+using FezGame;
 using FezGame.Services;
 using HatModLoader.Source.Worlds;
 
@@ -52,16 +53,16 @@ public static class WorldSelectionMenuBuilder
 
     private static void PreSaveWithWorld(WorldMetadata world, Action onFinished)
     {
+        // Technically unnecessary to set this, as level name can be overriden manually during this pre-save,
+        // cancelling effect of LoadSaveFile fallback, but it doesn't hurt to set it anyway.
+        Fez.ForcedLevelName = world.StartingLevel;
+        
+        onFinished?.Invoke();
+        // we hope at this state the save has been loaded
         var gameState = ServiceHelper.Get<IGameStateManager>();
-        gameState.LoadSaveFile(() =>
-        {
-            Hat.Instance.Worlds.SetInSave(gameState.SaveData, world);
-            gameState.SaveData.Level = world.StartingLevel;
-            
-            gameState.Save();
-            gameState.SaveImmediately();
-            onFinished?.Invoke();
-        });
+        Hat.Instance.Worlds.SetInSave(gameState.SaveData, world);
+        gameState.Save();
+        gameState.SaveImmediately();
     }
     
 }
