@@ -11,7 +11,7 @@ internal static class ModListMenuBuilder
         var openModsMenuItem = new MenuMediator.ItemTemplate
         {
             Text = "@MODS",
-            OnSelect = () => MenuMediator.OpenMenuLevel(menuBase, _modListMenuHandler.LevelTemplate)
+            OnSelect = () => MenuMediator.OpenSubMenuLevel(menuBase, _modListMenuHandler.LevelTemplate)
         };
         MenuMediator.AddItemToMenuLevel(openModsMenuItem, MenuMediator.GetMenuRoot(menuBase), -3);
     }

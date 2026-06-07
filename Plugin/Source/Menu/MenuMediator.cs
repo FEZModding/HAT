@@ -26,6 +26,7 @@ public static class MenuMediator
     private static FieldInfo _menuLevelOnResetField;
     private static FieldInfo _menuLevelOnPostDrawField;
     private static PropertyInfo _menuItemSelectableProperty;
+    private static PropertyInfo _menuItemDisabledProperty;
     private static PropertyInfo _menuItemSuffixTextProperty;
     private static MethodInfo _menuLevelAddItemMethod;
     private static MethodInfo _menuLevelAddScrollableItemMethod;
@@ -65,6 +66,7 @@ public static class MenuMediator
         _menuLevelOnResetField = _menuLevelType.GetField("OnReset");
         _menuLevelOnPostDrawField = _menuLevelType.GetField("OnPostDraw");
         _menuItemSelectableProperty = _menuItemType.GetProperty("Selectable");
+        _menuItemDisabledProperty = _menuItemType.GetProperty("Disabled");
         _menuItemSuffixTextProperty = _menuItemType.GetProperty("SuffixText");
         _menuLevelAddItemMethod = _menuLevelType
             .GetMethod("AddItem", new[] { typeof(string), typeof(Action), typeof(bool), typeof(int) });
@@ -82,13 +84,26 @@ public static class MenuMediator
         // need to refresh the menu before the transition to it happens (pause menu)
         _menuBaseRenderToTextureMethod.Invoke(menuBase, null);
     }
-    
-    public static void OpenMenuLevel(object menuBase, LevelTemplate template)
+
+    public static object OpenSubMenuLevel(object menuBase, LevelTemplate template)
     {
         var level = BuildMenuLevelObject(template);
         var currentLevel = _menuBaseCurrentMenuLevelField.GetValue(menuBase);
         _menuLevelParentField.SetValue(level, currentLevel);
-        _menuBaseChangeMenuLevelMethod.Invoke(menuBase, new[] { level, false });
+        OpenMenuLevel(menuBase, level);
+        return level;
+    }
+    
+    public static object OpenMenuLevel(object menuBase, LevelTemplate template)
+    {
+        var level = BuildMenuLevelObject(template);
+        OpenMenuLevel(menuBase, level);
+        return level;
+    }
+
+    public static void OpenMenuLevel(object menuBase, object menuLevel)
+    {
+        _menuBaseChangeMenuLevelMethod.Invoke(menuBase, new[] { menuLevel, false });
     }
 
     public static object GetMenuRoot(object menuBase)
@@ -135,6 +150,7 @@ public static class MenuMediator
         }
             
         _menuItemSelectableProperty.SetValue(item, template.Selectable);
+        _menuItemDisabledProperty.SetValue(item, template.Disabled);
         if (template.SuffixText != null)
         {
             _menuItemSuffixTextProperty.SetValue(item, template.SuffixText);
@@ -159,6 +175,7 @@ public static class MenuMediator
         {
             _menuLevelOnPostDrawField.SetValue(level, template.OnPostDraw);
         }
+        GetMenuLevelItems(level).Clear();
         foreach (var item in template.Items)
         {
             AddItemToMenuLevel(item, level);
@@ -190,6 +207,7 @@ public static class MenuMediator
         public string Text;
         public Action OnSelect = () => { };
         public bool Selectable = true;
+        public bool Disabled = false;
         public bool IsDefault = false;
         public Func<string> SuffixText;
         public Func<int> Getter;

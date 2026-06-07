@@ -7,10 +7,11 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace HatModLoader.Source.Menu;
 
-public class ListMenuHandler
+public class ListMenuHandler : IDisposable
 {
     private int _selectionIndex;
     private readonly List<Texture2D> _thumbnails = new();
+    private object _levelToRebuild;
     
     public List<Item> Items = new();
     public Func<int> DefaultIndex;
@@ -20,7 +21,7 @@ public class ListMenuHandler
     public bool NoThumbnail;
     public bool LoopOver;
     
-    public MenuMediator.LevelTemplate LevelTemplate;
+    public MenuMediator.LevelTemplate LevelTemplate { get; private set; }
 
     public ListMenuHandler(MenuMediator.LevelTemplate template)
     {
@@ -36,8 +37,17 @@ public class ListMenuHandler
         }
         
         LevelTemplate.OnPostDraw += DrawSelectionThumbnail;
-        LevelTemplate.OnReset += OnReset;
         
+        RebuildItemTemplates();
+    }
+
+    public void MarkLevelForRebuilding(object menuLevelToRebuild)
+    {
+        _levelToRebuild = menuLevelToRebuild;
+    }
+
+    private void RebuildItemTemplates()
+    {
         LevelTemplate.Items.Clear();
 
         if (Items.Count == 0 && !string.IsNullOrEmpty(NoItemsText))
@@ -46,10 +56,12 @@ public class ListMenuHandler
             return;
         }
 
+        var maxLabelsCount = Items.Max(item => item.Labels.Count);
+        
         if (!NoThumbnail)
         {
             InitializeThumbnails();
-            LevelTemplate.AddPaddingLines(2 + Items.Count);
+            LevelTemplate.AddPaddingLines(3 + maxLabelsCount);
         }
 
         LevelTemplate.Items.Add(new MenuMediator.ItemTemplate
@@ -57,15 +69,16 @@ public class ListMenuHandler
             Getter = () => _selectionIndex,
             Setter = (_, change) => ChangeSelectionIndex(change),
             SuffixText = GetScrollItemText,
-            OnSelect = () => OnSelect?.Invoke(_selectionIndex),
+            OnSelect = OnItemSelected,
             IsDefault = true,
         });
         
-        var maxLabelsCount = Items.Max(item => item.Labels.Count);
         for (var i = 0; i < maxLabelsCount; i++)
         {
             var labelIndex = i; // for lambda capture
-            LevelTemplate.Items.Add(MenuMediator.ItemTemplate.DynamicLabel(() => GetLabelText(labelIndex)));
+            var labelItem = MenuMediator.ItemTemplate.DynamicLabel(() => GetLabelText(labelIndex));
+            labelItem.Disabled = Items[_selectionIndex].Disabled;
+            LevelTemplate.Items.Add(labelItem);
         }
     }
 
@@ -75,6 +88,12 @@ public class ListMenuHandler
         _selectionIndex = LoopOver
             ? (_selectionIndex + change + count) % count
             : Math.Min(Math.Max(0, _selectionIndex + change), count - 1);
+
+        if (_levelToRebuild != null)
+        {
+            RebuildItemTemplates();
+            MenuMediator.BuildMenuLevelObject(LevelTemplate, _levelToRebuild);
+        }
     }
 
     private string GetScrollItemText()
@@ -91,10 +110,22 @@ public class ListMenuHandler
         var displayItemCount = Items.Count - firstNonCustomIndex;
         return $"{scrollPrefix}{displayIndex} / {displayItemCount}";
     }
+
+    private void OnItemSelected()
+    {
+        if (!Items[_selectionIndex].Disabled)
+        {
+            OnSelect?.Invoke(_selectionIndex);
+        }
+    }
     
     private void InitializeThumbnails()
     {
-        DisposeThumbnails();
+        if (_thumbnails.Count > 0)
+        {
+            return;
+        }
+        
         var cm = ServiceHelper.Get<IContentManagerProvider>().Global;
         foreach (var item in Items)
         {
@@ -127,7 +158,7 @@ public class ListMenuHandler
 
     private void DrawSelectionThumbnail(SpriteBatch batch, SpriteFont font, GlyphTextRenderer tr, float alpha)
     {
-        if (NoThumbnail)
+        if (NoThumbnail || _thumbnails.Count == 0)
         {
             return;
         }
@@ -151,17 +182,12 @@ public class ListMenuHandler
         
         batch.Draw(thumbnail, targetRectangle, null, Color.White, 0f, origin, SpriteEffects.None, 0f);
     }
-
-    private void OnReset()
+    
+    public void Dispose()
     {
-        DisposeThumbnails();
-    }
-
-    private void DisposeThumbnails()
-    {
-        foreach (var thumbnail in _thumbnails)
+        if (_thumbnails == null)
         {
-            thumbnail.Dispose();
+            return;
         }
         _thumbnails.Clear();
     }
@@ -171,5 +197,6 @@ public class ListMenuHandler
         public List<string> Labels;
         public string ThumbnailPath;
         public string CustomTitle;
+        public bool Disabled;
     }
 }

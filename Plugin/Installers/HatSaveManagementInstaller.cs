@@ -1,7 +1,6 @@
 ﻿using FezGame;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
-using Common;
 using FezEngine.Tools;
 using FezGame.Services;
 using HatModLoader.Source.Menu;
@@ -13,6 +12,7 @@ namespace HatModLoader.Installers
     internal class HatSaveManagementInstaller : IHatInstaller
     {
         private static IDetour _saveSlotSelectionMenuHook;
+        private static IDetour _saveManagementMenuHook;
         private static IDetour _beginSpeedrunHook;
         private static IDetour _resetSpeedrunHook;
         
@@ -20,6 +20,8 @@ namespace HatModLoader.Installers
         {
             var saveSlotSelectionLevelType = Assembly.GetAssembly(typeof(Fez))
                 .GetType("FezGame.Structure.SaveSlotSelectionLevel");
+            var saveManagementLevelType = Assembly.GetAssembly(typeof(Fez))
+                .GetType("FezGame.Structure.SaveManagementLevel");
             var pauseMenuType = Assembly.GetAssembly(typeof(Fez))
                 .GetType("FezGame.Components.PauseMenu");
 
@@ -37,7 +39,19 @@ namespace HatModLoader.Installers
                         .GetField("GameState", BindingFlags.Instance | BindingFlags.NonPublic)?
                         .SetValue(self, ServiceHelper.Get<IGameStateManager>());
                     
-                    HatSaveSelectionMenuBuilder.InitializeWithSaveSelectionMenuLevel(self);
+                    HatSaveManagementMenuBuilder.InitializeWithSaveSelectionMenuLevel(self);
+                })
+            );
+
+            _saveManagementMenuHook = new Hook(
+                saveManagementLevelType.GetMethod("Initialize"),
+                new Action<Action<object>, object>((orig, self) =>
+                {
+                    self.GetType()
+                        .GetField("initialized", BindingFlags.Instance | BindingFlags.NonPublic)?
+                        .SetValue(self, true);
+                    
+                    HatSaveManagementMenuBuilder.InitializeWithSaveManagementMenuLevel(self);
                 })
             );
 
@@ -56,7 +70,7 @@ namespace HatModLoader.Installers
             // replacing the first occurence of literal integer 4 with new integer.
             // easily works for both hook cases, because they have slot assignment is the first line of code in a function.
             const int OldSlot = 4;
-            const int NewSlot = -1337;
+            const int NewSlot = -2256671; // can be whatever as long as it avoids collision. I wonder what it means...
             
             var cursor = new ILCursor(il);
             cursor.GotoNext(MoveType.Before, i => i.MatchLdcI4(OldSlot));
@@ -68,6 +82,7 @@ namespace HatModLoader.Installers
         public void Uninstall()
         {
             _saveSlotSelectionMenuHook?.Dispose();
+            _saveManagementMenuHook?.Dispose();
             _beginSpeedrunHook?.Dispose();
             _resetSpeedrunHook?.Dispose();
         }
