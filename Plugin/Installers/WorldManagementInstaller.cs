@@ -1,7 +1,10 @@
-﻿using Common;
+﻿using FezEngine.Tools;
 using FezGame;
+using FezGame.Components;
 using FezGame.Services;
 using HatModLoader.Source;
+using HatModLoader.Source.Worlds;
+using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 
 namespace HatModLoader.Installers;
@@ -10,11 +13,13 @@ public class WorldManagementInstaller : IHatInstaller
 {
     private IDetour _gameStateClearSaveFileHook;
     private IDetour _gameStateLoadLevelHook;
+    private IDetour _worldMapNameHook;
     
     public void Install()
     {
         _gameStateClearSaveFileHook = new Hook(typeof(GameStateManager).GetMethod("ClearSaveFile"), GameStateClearSaveFileHook);
         _gameStateLoadLevelHook = new Hook(typeof(GameStateManager).GetMethod("LoadLevel"), GameStateLoadLevelHook);
+        _worldMapNameHook = new ILHook(typeof(WorldMap).GetMethod("Initialize"), WorldMapCustomNameInject);
     }
 
     private void GameStateClearSaveFileHook(Action<IGameStateManager> orig, IGameStateManager self)
@@ -42,9 +47,28 @@ public class WorldManagementInstaller : IHatInstaller
         orig(self);
     }
 
+    private void WorldMapCustomNameInject(ILContext il)
+    {
+        var cursor = new ILCursor(il);
+
+        cursor.GotoNext(i => i.MatchLdstr("MapTree"));
+        cursor.Remove();
+
+        cursor.EmitDelegate(static () =>
+        {
+            var saveData = ServiceHelper.Get<IGameStateManager>().SaveData;
+            if (!Hat.Instance.Worlds.TryGetFromSave(saveData, out var world))
+            {
+                world = WorldMetadata.Fez;
+            }
+            return world.MapTree;
+        });
+    }
+
     public void Uninstall()
     {
         _gameStateClearSaveFileHook?.Dispose();
         _gameStateLoadLevelHook?.Dispose();
+        _worldMapNameHook?.Dispose();
     }
 }
