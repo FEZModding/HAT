@@ -292,6 +292,7 @@ public static class Program
             // Prefer 4.8-api, fall back to any 4.x directory
             var monoPath = Directory.Exists(MonoRoot)
                 ? Directory.EnumerateDirectories(MonoRoot, "4.*")
+                      .Where(d => File.Exists(Path.Combine(d, "Facades", "netstandard.dll")))
                       .OrderByDescending(d => d)
                       .FirstOrDefault()
                 : null;
