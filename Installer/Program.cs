@@ -21,12 +21,16 @@ public static class Program
 
     private const string MonoRoot = "/usr/lib/mono";
 
+    private static string? UserFezPath = null;
+    private static string? UserMonoRoot = null;
+
     public static void Main(string[] args)
     {
         PrintHeader();
         try
         {
-            if (TryFindFezExecutable(args, out var fezPath))
+            ParseCommandLineArguments(args);
+            if (TryFindFezExecutable(out var fezPath))
             {
                 ExtractHatDependencies(fezPath);
                 var hatPath = PatchExecutable(fezPath);
@@ -82,21 +86,30 @@ public static class Program
 #endif
     }
 
-    private static bool TryFindFezExecutable(string[] args, out string executable)
+    private static void ParseCommandLineArguments(string[] args)
+    {
+        var queue = new Queue<string>(args);
+        while (queue.Count > 0)
+        {
+            switch (queue.Dequeue().ToLowerInvariant())
+            {
+                case "-p" or "--path":
+                    UserFezPath = Path.GetFullPath(queue.Dequeue());
+                    break;
+                case "-m" or "--mono-path":
+                    UserMonoRoot = Path.GetFullPath(queue.Dequeue());
+                    break;
+            }
+        }
+    }
+
+    private static bool TryFindFezExecutable(out string executable)
     {
         var path = string.Empty;
         {
             Console.WriteLine("[HAT] Checking CLI \"--path\" or \"-p\" argument");
-            var queue = new Queue<string>(args);
-            while (queue.Count > 0)
-            {
-                switch (queue.Dequeue().ToLowerInvariant())
-                {
-                    case "-p" or "--path":
-                        path = Path.GetFullPath(queue.Dequeue());
-                        break;
-                }
-            }
+            if (UserFezPath != null)
+                path = UserFezPath;
         }
 
         if (string.IsNullOrEmpty(path))
@@ -289,14 +302,24 @@ public static class Program
         }
         else
         {
-            // Prefer 4.8-api, fall back to any 4.x directory
-            var monoPath = Directory.Exists(MonoRoot)
-                ? Directory.EnumerateDirectories(MonoRoot, "4.*")
-                      .Where(d => File.Exists(Path.Combine(d, "Facades", "netstandard.dll")))
-                      .OrderByDescending(d => d)
-                      .FirstOrDefault()
-                : null;
-            
+            string? monoPath = null;
+
+            Console.WriteLine("[HAT] Checking CLI \"--mono-path\" or \"-m\" argument");
+            if (UserMonoRoot != null) {
+                monoPath = UserMonoRoot;
+            }
+
+            if (string.IsNullOrEmpty(monoPath)) {
+                // Prefer 4.8-api, fall back to any 4.x directory
+                Console.WriteLine("[HAT] Checking for system Mono");
+                monoPath = Directory.Exists(MonoRoot)
+                    ? Directory.EnumerateDirectories(MonoRoot, "4.*")
+                        .Where(d => File.Exists(Path.Combine(d, "Facades", "netstandard.dll")))
+                        .OrderByDescending(d => d)
+                        .FirstOrDefault()
+                    : null;
+            }
+
             if (!string.IsNullOrEmpty(monoPath))
             {
                 Console.WriteLine($"[HAT] Using system Mono for patching: {monoPath}");
