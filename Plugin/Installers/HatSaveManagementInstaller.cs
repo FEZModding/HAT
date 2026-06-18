@@ -16,6 +16,7 @@ namespace HatModLoader.Installers
         private static IDetour _saveManagementMenuHook;
         private static IDetour _beginSpeedrunHook;
         private static IDetour _resetSpeedrunHook;
+        private static IDetour _pauseMenuPostInitializeHook;
         
         public void Install()
         {
@@ -67,6 +68,12 @@ namespace HatModLoader.Installers
             _resetSpeedrunHook = new ILHook(
                 pauseMenuType.GetMethod("ResetSpeedRun", BindingFlags.Instance | BindingFlags.NonPublic),
                 InjectNewSpeedrunSaveSlot);
+
+            // This one might be dangerous if anything else in the future uses a literal of 4
+            _pauseMenuPostInitializeHook = new ILHook(
+                pauseMenuType.GetMethod("PostInitialize", BindingFlags.Instance | BindingFlags.NonPublic),
+                InjectNewSpeedrunSaveSlot
+            );
         }
 
 
@@ -90,6 +97,7 @@ namespace HatModLoader.Installers
             _saveManagementMenuHook?.Dispose();
             _beginSpeedrunHook?.Dispose();
             _resetSpeedrunHook?.Dispose();
+            _pauseMenuPostInitializeHook?.Dispose();
         }
     }
 }
