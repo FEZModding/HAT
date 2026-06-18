@@ -31,7 +31,7 @@ public class ListMenuHandler : IDisposable
     public void Initialize()
     {
         _selectionIndex = DefaultIndex?.Invoke() ?? 0;
-        if (_selectionIndex >= Items.Count)
+        if (_selectionIndex >= Items.Count || _selectionIndex < 0)
         {
             _selectionIndex = 0;
         }
