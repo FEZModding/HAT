@@ -49,6 +49,21 @@ public class WorldsManifest
         return TryGet(matchingNameMod, out world);
     }
 
+    public bool TryGetOwningMod(WorldMetadata ownedWorld, out ModContainer modContainer)
+    {
+        foreach (var modPair in _worlds)
+        {
+            if (modPair.Value == ownedWorld)
+            {
+                modContainer = modPair.Key;
+                return true;
+            }
+        }
+
+        modContainer = null;
+        return false;
+    }
+
     public bool TryGetFromSave(SaveData saveData, out WorldMetadata world)
     {
         if (saveData == null)
@@ -86,15 +101,12 @@ public class WorldsManifest
             return;
         }
 
-        foreach (var modPair in _worlds)
+        if (!TryGetOwningMod(world, out var modContainer))
         {
-            if (modPair.Value == world)
-            {
-                saveData.SetCustomData(CustomSaveDataKey, modPair.Key.Metadata.Name);
-                return;
-            }
+            // this should not happen!
+            throw new Exception($"Metadata for world \"{world.DisplayName}\" doesn't exist in manifest.");
         }
         
-        throw new Exception("Given metadata doesn't exist in manifest.");
+        saveData.SetCustomData(CustomSaveDataKey, modContainer.Metadata.Name);
     }
 }

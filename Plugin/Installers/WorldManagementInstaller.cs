@@ -33,6 +33,7 @@ public class WorldManagementInstaller : IHatInstaller
         if (worldRetrieved)
         {
             worlds.SetInSave(self.SaveData, world);
+            world.AssignStartingSaveFieldsTo(self.SaveData);
         }
     }
     
