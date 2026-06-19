@@ -8,6 +8,7 @@ using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
 using HatModLoader.Source.ModDefinition;
+using HatModLoader.Source.Worlds;
 
 namespace HatModLoader.Source
 {
@@ -20,6 +21,8 @@ namespace HatModLoader.Source
         private static readonly IList<string> PriorityModNames = InitializePriorityList();
 
         public List<ModContainer> Mods { get; } = new();
+        
+        public WorldsManifest Worlds { get; private set; }
 
         public int InvalidModsCount { get; private set; }
 
@@ -56,6 +59,7 @@ namespace HatModLoader.Source
                 {
                     ResolveDependencies(mods);
                     LoadMods();
+                    Worlds = new WorldsManifest(Mods);
                     return; // HAT initialized
                 }
             }
