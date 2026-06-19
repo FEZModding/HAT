@@ -12,6 +12,8 @@ namespace HatModLoader.Installers
 {
     internal class HatSaveManagementInstaller : IHatInstaller
     {
+        public const int SpeedrunSaveSlotIndex = -2256671; // I wonder what it means...
+        
         private static IDetour _saveSlotSelectionMenuHook;
         private static IDetour _saveManagementMenuHook;
         private static IDetour _beginSpeedrunHook;
@@ -82,7 +84,7 @@ namespace HatModLoader.Installers
             // replacing the first occurence of literal integer 4 with new integer.
             // easily works for both hook cases, because they have slot assignment is the first line of code in a function.
             const int OldSlot = 4;
-            const int NewSlot = -2256671; // can be whatever as long as it avoids collision. I wonder what it means...
+            const int NewSlot = SpeedrunSaveSlotIndex; // can be whatever as long as it avoids collision.
             
             var cursor = new ILCursor(il);
             cursor.GotoNext(MoveType.Before, i => i.MatchLdcI4(OldSlot));
