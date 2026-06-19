@@ -183,6 +183,7 @@ internal static class HatSaveManagementMenuBuilder
         
         // rules copied from original SaveSlotSelectionLevel
         var level = saveData.Level;
+        if (string.IsNullOrEmpty(level)) level = "";
         if (level.Contains("GOMEZ_HOUSE")) level = "GOMEZ_HOUSE";
         if (level.Contains("VILLAGEVILLE") || level == "ELDERS") level = "VILLAGEVILLE_3D";
         if (level == "PYRAMID" || level == "HEX_REBUILD") level = "STARGATE";
