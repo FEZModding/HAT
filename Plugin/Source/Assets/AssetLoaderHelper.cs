@@ -48,7 +48,7 @@ namespace HatModLoader.Source.Assets
 
                     if (!savedAnyRawFiles)
                     {
-                        Logger.Log("HAT", $"Could not convert asset bundle {bundle.BundlePath}: {ex.Message}\n{ex.StackTrace}");
+                        Logger.Log("HAT", $"Could not convert asset bundle {bundle.BundlePath}: {ex}");
                     }
                 }
 
