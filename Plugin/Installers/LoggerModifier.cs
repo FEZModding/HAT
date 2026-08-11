@@ -1,4 +1,5 @@
 ﻿using Common;
+using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
@@ -14,7 +15,7 @@ namespace HatModLoader.Installers
 
         public static Hook LogDetour;
 
-        public void Install()
+        public void Install(Hat hat)
         {
             LogDetour = new Hook(
                 typeof(Logger).GetMethod("Log", new Type[] { typeof(string), typeof(LogSeverity), typeof(string) }),

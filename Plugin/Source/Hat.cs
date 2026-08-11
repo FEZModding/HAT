@@ -3,7 +3,6 @@ using Common;
 using FezEngine.Tools;
 using FezGame;
 using FezGame.Services;
-using HatModLoader.Installers;
 using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
@@ -21,7 +20,9 @@ namespace HatModLoader.Source
         private static readonly IList<string> PriorityModNames = InitializePriorityList();
 
         public List<ModContainer> Mods { get; } = new();
-        
+
+        public AssetManager AssetManager { get; private set; }
+
         public WorldsManifest Worlds { get; private set; }
 
         public int InvalidModsCount { get; private set; }
@@ -46,10 +47,11 @@ namespace HatModLoader.Source
         {
             Instance = this;
             _fezGame = fez;
-            Initialize();
+            AssetManager = new AssetManager(this);
+            AssetManager.InitializeHooks();
         }
 
-        private void Initialize()
+        public void Initialize()
         {
             Logger.Log("HAT", $"HAT Mod Loader {Version}{Suffix}");
 
@@ -60,6 +62,7 @@ namespace HatModLoader.Source
                     ResolveDependencies(mods);
                     LoadMods();
                     Worlds = new WorldsManifest(Mods);
+                    InitializeAssemblies();
                     return; // HAT initialized
                 }
             }
@@ -151,7 +154,7 @@ namespace HatModLoader.Source
             Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
         }
 
-        public void InitializeAssemblies()
+        private void InitializeAssemblies()
         {
             foreach (var mod in Mods)
             {
@@ -165,17 +168,6 @@ namespace HatModLoader.Source
             {
                 mod.InjectComponents();
             }
-        }
-
-        public IEnumerable<Asset> GetFullAssetList()
-        {
-            var assets = new List<Asset>();
-            foreach (var mod in Mods)
-            {
-                assets.AddRange(mod.GetAssets());
-            }
-
-            return assets;
         }
 
         public void OnGameActivated()
@@ -201,18 +193,18 @@ namespace HatModLoader.Source
             {
                 if (asset.IsRemoved)
                 {
-                    AssetManagementInstaller.RemoveAsset(asset);
+                    AssetManager.RemoveAsset(asset);
                     if (!asset.IsMusicFile)
                     {
-                        AssetManagementInstaller.EvictFromCommon(asset.AssetPath);
+                        AssetManager.EvictFromCommon(asset.AssetPath);
                     }
                 }
                 else
                 {
-                    AssetManagementInstaller.InjectAsset(asset);
+                    AssetManager.InjectAsset(asset);
                     if (!asset.IsMusicFile)
                     {
-                        AssetManagementInstaller.PatchInCommon(asset.AssetPath);
+                        AssetManager.PatchInCommon(asset.AssetPath);
                     }
                 }
             }

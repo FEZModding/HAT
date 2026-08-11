@@ -1,7 +1,8 @@
 ﻿using FezGame;
+using HatModLoader.Source;
+using HatModLoader.Source.Menu;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
-using HatModLoader.Source.Menu;
 
 namespace HatModLoader.Installers
 {
@@ -9,7 +10,7 @@ namespace HatModLoader.Installers
     {
         private static Hook _menuInitializeHook;
         
-        public void Install()
+        public void Install(Hat hat)
         {
             var menuBaseType = Assembly.GetAssembly(typeof(Fez)).GetType("FezGame.Components.MenuBase");
 

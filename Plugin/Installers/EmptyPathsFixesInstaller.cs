@@ -1,4 +1,5 @@
 ﻿using FezEngine.Structure;
+using HatModLoader.Source;
 using MonoMod.RuntimeDetour;
 
 namespace HatModLoader.Installers;
@@ -7,7 +8,7 @@ public class EmptyPathsFixesInstaller : IHatInstaller
 {
     private static IDetour LevelPathsNullifierHook;
     
-    public void Install()
+    public void Install(Hat hat)
     {
         // Some properties, especially in Level, are used as partial paths for assets. They're optional,
         // as the game makes sure to skip the logic if a property contains a null value. Unfortunately,

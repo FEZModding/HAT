@@ -1,8 +1,10 @@
-﻿namespace HatModLoader.Installers
+﻿using HatModLoader.Source;
+
+namespace HatModLoader.Installers
 {
     internal interface IHatInstaller
     {
-        void Install();
+        void Install(Hat hat);
         void Uninstall();
     }
 }

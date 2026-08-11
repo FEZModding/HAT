@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using FezGame.Components;
+using HatModLoader.Source;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
@@ -11,7 +12,7 @@ public class MultithreadingFixesInstaller : IHatInstaller
 {
     private static IDetour IntroDoPanDownHook;
     
-    public void Install()
+    public void Install(Hat hat)
     {
         IntroDoPanDownHook = PatchIntroPanDownDeadlock();
     }

@@ -3,79 +3,88 @@ using FezEngine.Effects.Structures;
 using FezEngine.Services;
 using FezEngine.Structure;
 using FezEngine.Tools;
-using HatModLoader.Source;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Audio;
-using MonoMod.RuntimeDetour;
+using Microsoft.Xna.Framework.Graphics;
 using System.Reflection;
-using HatModLoader.Source.Assets;
+using MonoMod.RuntimeDetour;
 
-namespace HatModLoader.Installers
+namespace HatModLoader.Source.Assets
 {
-    internal class AssetManagementInstaller : IHatInstaller
+    public class AssetManager : IDisposable
     {
-        private static Hook CMProviderCtorDetour;
-        private static Hook SMInitializeLibraryDetour;
+        private readonly Hat _hat;
 
-        private static FieldInfo CachedAssetsField;
-        private static FieldInfo MusicCacheField;
-        private static FieldInfo ReadLockField;
-        private static FieldInfo CommonField;
-        private static FieldInfo ReferencesField;
-        private static FieldInfo AssetField;
+        private readonly FieldInfo _cachedAssetsField;
+        private readonly FieldInfo _musicCacheField;
+        private readonly FieldInfo _readLockField;
+        private readonly FieldInfo _commonField;
+        private readonly FieldInfo _referencesField;
+        private readonly FieldInfo _assetField;
+        
+        private Hook _cmProviderCtorDetour;
+        private Hook _smInitializeLibraryDetour;
 
-        private static readonly Dictionary<string, byte[]> OriginalAssets = new();
-        private static readonly Dictionary<string, byte[]> OriginalMusic = new();
+        private readonly Dictionary<string, byte[]> _originalAssets = new();
+        private readonly Dictionary<string, byte[]> _originalMusic = new();
 
-        public void Install()
+        public AssetManager(Hat hat)
         {
-            CachedAssetsField = typeof(MemoryContentManager)
-                .GetField("cachedAssets", BindingFlags.NonPublic | BindingFlags.Static);
-            MusicCacheField = typeof(SoundManager)
-                .GetField("MusicCache", BindingFlags.NonPublic | BindingFlags.Instance);
-            ReadLockField = typeof(MemoryContentManager)
-                .GetField("ReadLock", BindingFlags.NonPublic | BindingFlags.Static);
-            CommonField = typeof(SharedContentManager)
-                .GetField("Common", BindingFlags.NonPublic | BindingFlags.Static);
-            ReferencesField = CommonField!.FieldType
-                .GetField("references", BindingFlags.NonPublic | BindingFlags.Instance);
-            var referencedAssetType = CommonField.FieldType
-                .GetNestedType("ReferencedAsset", BindingFlags.NonPublic);
-            AssetField = referencedAssetType!
-                .GetField("Asset", BindingFlags.Public | BindingFlags.Instance);
+            _hat = hat;
 
-            CMProviderCtorDetour = new Hook(
+            _cachedAssetsField = typeof(MemoryContentManager)
+                .GetField("cachedAssets", BindingFlags.NonPublic | BindingFlags.Static);
+            _musicCacheField = typeof(SoundManager)
+                .GetField("MusicCache", BindingFlags.NonPublic | BindingFlags.Instance);
+            _readLockField = typeof(MemoryContentManager)
+                .GetField("ReadLock", BindingFlags.NonPublic | BindingFlags.Static);
+            _commonField = typeof(SharedContentManager)
+                .GetField("Common", BindingFlags.NonPublic | BindingFlags.Static);
+            _referencesField = _commonField!.FieldType
+                .GetField("references", BindingFlags.NonPublic | BindingFlags.Instance);
+            var referencedAssetType = _commonField.FieldType
+                .GetNestedType("ReferencedAsset", BindingFlags.NonPublic);
+            _assetField = referencedAssetType!
+                .GetField("Asset", BindingFlags.Public | BindingFlags.Instance);
+        }
+
+        public void InitializeHooks()
+        {
+            _cmProviderCtorDetour = new Hook(
                 typeof(ContentManagerProvider).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null,
                     CallingConventions.HasThis, new Type[] { typeof(Game) }, null),
                 new Action<Action<ContentManagerProvider, Game>, ContentManagerProvider, Game>((orig, self, game) =>
                 {
                     orig(self, game);
-                    InjectAssets(self);
+                    InitialInjectAllAssets(self);
                 })
             );
 
-            SMInitializeLibraryDetour = new Hook(
+            _smInitializeLibraryDetour = new Hook(
                 typeof(SoundManager).GetMethod("InitializeLibrary"),
                 new Action<Action<SoundManager>, SoundManager>((orig, self) =>
                 {
                     orig(self);
-                    InjectMusic(self);
+                    InitialInjectAllMusic(self);
                 })
             );
         }
 
-        public void Uninstall()
+        private IEnumerable<Asset> GetOrderedAssets()
         {
-            CMProviderCtorDetour.Dispose();
-            SMInitializeLibraryDetour.Dispose();
+            var assets = new List<Asset>();
+            foreach (var mod in _hat.Mods)
+            {
+                assets.AddRange(mod.GetAssets());
+            }
+            return assets;
         }
 
-        private static void InjectAssets(ContentManagerProvider CMProvider)
+        private void InitialInjectAllAssets(ContentManagerProvider cmProvider)
         {
-            var cachedAssets = (Dictionary<string, byte[]>)CachedAssetsField.GetValue(null);
+            var cachedAssets = (Dictionary<string, byte[]>)_cachedAssetsField.GetValue(null);
 
-            foreach (var asset in Hat.Instance.GetFullAssetList())
+            foreach (var asset in GetOrderedAssets())
             {
                 if (asset.IsMusicFile) continue;
                 cachedAssets[asset.AssetPath] = asset.Data;
@@ -84,11 +93,11 @@ namespace HatModLoader.Installers
             Logger.Log("HAT", "Asset injection completed!");
         }
 
-        private static void InjectMusic(SoundManager soundManager)
+        private void InitialInjectAllMusic(SoundManager soundManager)
         {
-            var musicCache = (Dictionary<string, byte[]>)MusicCacheField.GetValue(soundManager);
+            var musicCache = (Dictionary<string, byte[]>)_musicCacheField.GetValue(soundManager);
 
-            foreach (var asset in Hat.Instance.GetFullAssetList())
+            foreach (var asset in GetOrderedAssets())
             {
                 if (!asset.IsMusicFile) continue;
                 musicCache[asset.AssetPath] = asset.Data;
@@ -97,30 +106,30 @@ namespace HatModLoader.Installers
             Logger.Log("HAT", "Music injection completed!");
         }
 
-        internal static void InjectAsset(Asset asset)
+        public void InjectAsset(Asset asset)
         {
             if (asset.IsMusicFile)
             {
                 var soundManager = (SoundManager)ServiceHelper.Get<ISoundManager>();
-                var musicCache = (Dictionary<string, byte[]>)MusicCacheField.GetValue(soundManager);
-                if (!OriginalMusic.ContainsKey(asset.AssetPath) &&
+                var musicCache = (Dictionary<string, byte[]>)_musicCacheField.GetValue(soundManager);
+                if (!_originalMusic.ContainsKey(asset.AssetPath) &&
                     musicCache.TryGetValue(asset.AssetPath, out var original))
                 {
-                    OriginalMusic[asset.AssetPath] = original;
+                    _originalMusic[asset.AssetPath] = original;
                 }
 
                 musicCache[asset.AssetPath] = asset.Data;
             }
             else
             {
-                var cachedAssets = (Dictionary<string, byte[]>)CachedAssetsField.GetValue(null);
-                var readLock = ReadLockField.GetValue(null);
+                var cachedAssets = (Dictionary<string, byte[]>)_cachedAssetsField.GetValue(null);
+                var readLock = _readLockField.GetValue(null);
                 lock (readLock)
                 {
-                    if (!OriginalAssets.ContainsKey(asset.AssetPath) &&
+                    if (!_originalAssets.ContainsKey(asset.AssetPath) &&
                         cachedAssets.TryGetValue(asset.AssetPath, out var original))
                     {
-                        OriginalAssets[asset.AssetPath] = original;
+                        _originalAssets[asset.AssetPath] = original;
                     }
 
                     cachedAssets[asset.AssetPath] = asset.Data;
@@ -128,13 +137,13 @@ namespace HatModLoader.Installers
             }
         }
 
-        internal static void RemoveAsset(Asset asset)
+        public void RemoveAsset(Asset asset)
         {
             if (asset.IsMusicFile)
             {
                 var soundManager = (SoundManager)ServiceHelper.Get<ISoundManager>();
-                var musicCache = (Dictionary<string, byte[]>)MusicCacheField.GetValue(soundManager);
-                if (OriginalMusic.TryGetValue(asset.AssetPath, out var original))
+                var musicCache = (Dictionary<string, byte[]>)_musicCacheField.GetValue(soundManager);
+                if (_originalMusic.TryGetValue(asset.AssetPath, out var original))
                 {
                     musicCache[asset.AssetPath] = original;
                 }
@@ -145,11 +154,11 @@ namespace HatModLoader.Installers
             }
             else
             {
-                var cachedAssets = (Dictionary<string, byte[]>)CachedAssetsField.GetValue(null);
-                var readLock = ReadLockField.GetValue(null);
+                var cachedAssets = (Dictionary<string, byte[]>)_cachedAssetsField.GetValue(null);
+                var readLock = _readLockField.GetValue(null);
                 lock (readLock)
                 {
-                    if (OriginalAssets.TryGetValue(asset.AssetPath, out var original))
+                    if (_originalAssets.TryGetValue(asset.AssetPath, out var original))
                     {
                         cachedAssets[asset.AssetPath] = original;
                     }
@@ -161,10 +170,10 @@ namespace HatModLoader.Installers
             }
         }
 
-        internal static void EvictFromCommon(string assetPath)
+        public void EvictFromCommon(string assetPath)
         {
-            var common = CommonField.GetValue(null);
-            var references = (System.Collections.IDictionary)ReferencesField.GetValue(common);
+            var common = _commonField.GetValue(null);
+            var references = (System.Collections.IDictionary)_referencesField.GetValue(common);
             lock (common)
             {
                 var key = FindReferencesKey(references, assetPath);
@@ -173,7 +182,7 @@ namespace HatModLoader.Installers
                     return;
                 }
 
-                var asset = AssetField.GetValue(references[key]);
+                var asset = _assetField.GetValue(references[key]);
                 if (asset is Texture texture)
                 {
                     texture.Unhook();
@@ -188,10 +197,10 @@ namespace HatModLoader.Installers
             }
         }
 
-        internal static void PatchInCommon(string assetPath)
+        public void PatchInCommon(string assetPath)
         {
-            var common = CommonField.GetValue(null);
-            var references = (System.Collections.IDictionary)ReferencesField.GetValue(common);
+            var common = _commonField.GetValue(null);
+            var references = (System.Collections.IDictionary)_referencesField.GetValue(common);
             lock (common)
             {
                 var key = FindReferencesKey(references, assetPath);
@@ -201,7 +210,7 @@ namespace HatModLoader.Installers
                 }
 
                 var entry = references[key];
-                var existing = AssetField.GetValue(entry);
+                var existing = _assetField.GetValue(entry);
 
                 var mcm = new MemoryContentManager(ServiceHelper.Game.Services,
                     ServiceHelper.Game.Content.RootDirectory);
@@ -239,7 +248,7 @@ namespace HatModLoader.Installers
                         {
                             existingTex.Unhook();
                             existingTex.Dispose();
-                            AssetField.SetValue(entry, replacement);
+                            _assetField.SetValue(entry, replacement);
                         }
                         else
                         {
@@ -253,13 +262,12 @@ namespace HatModLoader.Installers
                     {
                         var tempSfx = mcm.Load<SoundEffect>(assetPath);
                         existingSfx.Dispose();
-                        AssetField.SetValue(entry, tempSfx);
+                        _assetField.SetValue(entry, tempSfx);
                         return;
                     }
 
                     default:
                     {
-                        // Fall back to evict (already holding lock(common))
                         if (existing is Texture texture)
                         {
                             texture.Unhook();
@@ -311,6 +319,12 @@ namespace HatModLoader.Installers
             }
 
             return true;
+        }
+
+        public void Dispose()
+        {
+            _cmProviderCtorDetour?.Dispose();
+            _smInitializeLibraryDetour?.Dispose();
         }
     }
 }

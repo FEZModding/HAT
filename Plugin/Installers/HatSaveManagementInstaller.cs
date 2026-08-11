@@ -1,12 +1,13 @@
 ﻿using FezGame;
+using HatModLoader.Source;
+using HatModLoader.Source.Menu;
+using Mono.Cecil.Cil;
+using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
 using FezEngine.Components;
 using FezEngine.Tools;
 using FezGame.Services;
-using HatModLoader.Source.Menu;
-using Mono.Cecil.Cil;
-using MonoMod.Cil;
 
 namespace HatModLoader.Installers
 {
@@ -20,7 +21,7 @@ namespace HatModLoader.Installers
         private static IDetour _resetSpeedrunHook;
         private static IDetour _pauseMenuPostInitializeHook;
         
-        public void Install()
+        public void Install(Hat hat)
         {
             var saveSlotSelectionLevelType = Assembly.GetAssembly(typeof(Fez))
                 .GetType("FezGame.Structure.SaveSlotSelectionLevel");

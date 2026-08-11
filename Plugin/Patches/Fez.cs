@@ -18,12 +18,12 @@ namespace FezGame
         [MonoModConstructor]
         public void ctor()
         {
-            // executing IHatInstallers in a constructor so it can be called before everything else
+            HatML = new Hat(this);
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
-            .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
+                .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
             {
                 IHatInstaller installer = (IHatInstaller)Activator.CreateInstance(type);
-                installer.Install();
+                installer.Install(HatML);
             }
 
             orig_ctor();
@@ -33,8 +33,7 @@ namespace FezGame
         protected extern void orig_Initialize();
         protected override void Initialize()
         {
-            HatML = new Hat(this);
-            HatML.InitializeAssemblies();
+            HatML.Initialize();
             orig_Initialize();
             DrawingTools.Init();
             Activated += (_, _) => HatML.OnGameActivated();

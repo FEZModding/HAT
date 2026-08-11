@@ -4,6 +4,7 @@ using FezEngine.Tools;
 using FezGame;
 using FezGame.Components;
 using FezGame.Services;
+using HatModLoader.Source;
 using Microsoft.Xna.Framework;
 using MonoMod.RuntimeDetour;
 
@@ -15,7 +16,7 @@ public class LevelDebugInstaller : IHatInstaller
     
     private IDetour _gameInitializeHook;
     
-    public void Install()
+    public void Install(Hat hat)
     {
         _gameInitializeHook = new Hook(
             typeof(Game).GetMethod("Initialize", BindingFlags.Instance | BindingFlags.NonPublic),

@@ -15,7 +15,7 @@ public class WorldManagementInstaller : IHatInstaller
     private IDetour _gameStateLoadLevelHook;
     private IDetour _worldMapNameHook;
     
-    public void Install()
+    public void Install(Hat hat)
     {
         _gameStateClearSaveFileHook = new Hook(typeof(GameStateManager).GetMethod("ClearSaveFile"), GameStateClearSaveFileHook);
         _gameStateLoadLevelHook = new Hook(typeof(GameStateManager).GetMethod("LoadLevel"), GameStateLoadLevelHook);
