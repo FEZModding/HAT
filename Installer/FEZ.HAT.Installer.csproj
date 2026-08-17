@@ -20,18 +20,25 @@
     <PackageReference Include="GitInfo" Version="3.6.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" GeneratePathProperty="true">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>all</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="NETStandard.Library" Version="2.0.3" GeneratePathProperty="true">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>all</ExcludeAssets>
+    </PackageReference>
     <PackageReference Include="MonoMod" Version="22.7.31.1" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="HAT.txt" LogicalName="HAT.txt" />
     <EmbeddedResource Include="HAT.ico" LogicalName="HAT.ico" />
-    <EmbeddedResource Include="$(NetCoreRoot)LICENSE.txt"
-                      Condition="Exists('$(NetCoreRoot)LICENSE.txt')"
-                      LogicalName="dotnet-LICENSE.txt" />
-    <EmbeddedResource Include="$(NetCoreRoot)ThirdPartyNotices.txt"
-                      Condition="Exists('$(NetCoreRoot)ThirdPartyNotices.txt')"
-                      LogicalName="dotnet-ThirdPartyNotices.txt" />
+    <EmbeddedResource Include="$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net48)\build\.NETFramework\v4.8\*.dll">
+      <LogicalName>FrameworkReferences/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(PkgNETStandard_Library)\build\netstandard2.0\ref\netstandard.dll"
+                      LogicalName="FrameworkReferences/Facades/netstandard.dll" />
   </ItemGroup>
 
   <ItemGroup>

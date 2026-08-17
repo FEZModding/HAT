@@ -17,11 +17,13 @@ public static class Program
 
     private const string HatLauncherResource = "HAT.Launcher";
 
-    private const string MonoRoot = "/usr/lib/mono";
+    private static readonly string[] FrameworkImplementationAssemblies =
+    {
+        "SMDiagnostics",
+        "System.ServiceModel.Internals"
+    };
 
     private static string? _userFezPath;
-
-    private static string? _userMonoRoot;
 
     public static void Main(string[] args)
     {
@@ -93,9 +95,6 @@ public static class Program
             {
                 case "-p" or "--path":
                     _userFezPath = Path.GetFullPath(queue.Dequeue());
-                    break;
-                case "-m" or "--mono-path":
-                    _userMonoRoot = Path.GetFullPath(queue.Dequeue());
                     break;
             }
         }
@@ -251,102 +250,227 @@ public static class Program
     private static string PatchExecutable(string path)
     {
         var basePath = Path.GetDirectoryName(path)!;
-        using var modder = new MonoModder();
-
-        modder.InputPath = path;
-        modder.OutputPath = path.Replace(FezExecutable, HatExecutable);
-        modder.ReadingMode = ReadingMode.Deferred;
-        modder.AssemblyResolver = BuildResolver(basePath);
-        modder.MissingDependencyThrow = true;
-        modder.WriterParameters = new WriterParameters
+        var referencePath = ExtractFrameworkReferences();
+        try
         {
-            SymbolWriterProvider = new PortablePdbWriterProvider(),
-            WriteSymbols = true
-        };
+            using var modder = new MonoModder();
 
-        modder.Read();
-        modder.ReadMod(Path.Combine(basePath, "FEZ.HAT.mm.dll"));
-        modder.ReadMod(Path.Combine(basePath, "FEZ.Hooks.mm.dll"));
-        modder.MapDependencies();
-        modder.AutoPatch();
-        modder.Write();
+            modder.InputPath = path;
+            modder.OutputPath = path.Replace(FezExecutable, HatExecutable);
+            modder.ReadingMode = ReadingMode.Deferred;
+            modder.AssemblyResolver = BuildResolver(basePath, referencePath);
+            modder.MissingDependencyThrow = true;
+            modder.MissingDependencyResolver = (currentModder, main, name, fullName) =>
+                IsFrameworkImplementationDependency(main, name, fullName, referencePath)
+                    ? null
+                    : currentModder.DefaultMissingDependencyResolver(currentModder, main, name, fullName);
 
-        return modder.OutputPath;
+            modder.WriterParameters = new WriterParameters
+            {
+                SymbolWriterProvider = new PortablePdbWriterProvider(),
+                WriteSymbols = true
+            };
+
+            modder.Read();
+            modder.ReadMod(Path.Combine(basePath, "FEZ.HAT.mm.dll"));
+            modder.ReadMod(Path.Combine(basePath, "FEZ.Hooks.mm.dll"));
+            PrioritizeFrameworkDependencyDirectories(modder, referencePath);
+            modder.MapDependencies();
+            modder.AutoPatch();
+            modder.Write();
+
+            return modder.OutputPath;
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(referencePath, recursive: true);
+            }
+            catch
+            {
+                // Do not mask the patching result or its original error with cleanup failure.
+            }
+        }
     }
 
-    private static DefaultAssemblyResolver BuildResolver(string path)
+    private static void PrioritizeFrameworkDependencyDirectories(
+        MonoModder modder,
+        string referencePath)
     {
-        var resolver = new DefaultAssemblyResolver();
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        var frameworkDirectories = new[]
         {
-            // .NET Framework install - registry tells us where
-            var netFxRoot = (string)Registry.GetValue(
-                @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework",
-                "InstallRoot", ""
-            )!;
+            referencePath,
+            Path.Combine(referencePath, "Facades")
+        };
 
-            if (string.IsNullOrEmpty(netFxRoot))
-            {
-                netFxRoot = Directory.EnumerateDirectories(path, "v4.*")
-                    .OrderByDescending(d => d)
-                    .FirstOrDefault();
-            }
-
-            if (!string.IsNullOrEmpty(netFxRoot))
-            {
-                var installFolder = Directory.EnumerateDirectories(netFxRoot, "v4.*")
-                    .OrderByDescending(d => d)
-                    .FirstOrDefault();
-                resolver.AddSearchDirectory(installFolder);
-            }
-        }
-        else
+        foreach (var frameworkDirectory in frameworkDirectories)
         {
-            string? monoPath = null;
-
-            Console.WriteLine("[HAT] Checking CLI \"--mono-path\" or \"-m\" argument");
-            if (_userMonoRoot != null) {
-                monoPath = _userMonoRoot;
-            }
-
-            if (string.IsNullOrEmpty(monoPath)) {
-                // Prefer 4.8-api, fall back to any 4.x directory
-                Console.WriteLine("[HAT] Checking for system Mono");
-                monoPath = Directory.Exists(MonoRoot)
-                    ? Directory.EnumerateDirectories(MonoRoot, "4.*")
-                        .Where(d => File.Exists(Path.Combine(d, "Facades", "netstandard.dll")))
-                        .OrderByDescending(d => d)
-                        .FirstOrDefault()
-                    : null;
-            }
-
-            if (!string.IsNullOrEmpty(monoPath))
-            {
-                Console.WriteLine($"[HAT] Using system Mono for patching: {monoPath}");
-                resolver.AddSearchDirectory(monoPath);
-                var netstandard = Path.Combine(monoPath, "Facades", "netstandard.dll");
-                if (File.Exists(netstandard))
-                {
-                    // Copy netstandard.dll from the resolved 4.x api dir so FEZRepacker can load it at runtime
-                    File.Copy(netstandard, Path.Combine(path, "netstandard.dll"), overwrite: true);
-                }
-            }
-            else
-            {
-                Console.WriteLine("[HAT] System Mono not found, falling back to MonoKickstart libraries");
-                resolver.AddSearchDirectory(path);
-                var netstandard = Path.Combine(path, "netstandard.dll");
-                if (!File.Exists(netstandard))
-                {
-                    throw new InstallerException("Please supplement netstandard.dll one from mono package.");
-                }
-            }
+            var fullFrameworkDirectory = Path.GetFullPath(frameworkDirectory);
+            modder.DependencyDirs.RemoveAll(directory =>
+                Path.GetFullPath(directory).Equals(
+                    fullFrameworkDirectory,
+                    StringComparison.OrdinalIgnoreCase));
         }
+
+        modder.DependencyDirs.InsertRange(0, frameworkDirectories);
+    }
+
+    private static string ExtractFrameworkReferences()
+    {
+        const string resourcePrefix = "FrameworkReferences/";
+        var referencePath = Path.Combine(
+            Path.GetTempPath(),
+            "HAT",
+            "references-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(referencePath);
+
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            foreach (var resourceName in assembly.GetManifestResourceNames()
+                         .Where(name => name.StartsWith(resourcePrefix, StringComparison.Ordinal)))
+            {
+                var relativePath = resourceName[resourcePrefix.Length..]
+                    .Replace('/', Path.DirectorySeparatorChar);
+                var destination = Path.Combine(referencePath, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+
+                using var source = assembly.GetManifestResourceStream(resourceName)
+                                   ?? throw new InstallerException(
+                                       $"Embedded framework reference is missing: {resourceName}");
+                using var destinationStream = File.Create(destination);
+                source.CopyTo(destinationStream);
+            }
+
+            return referencePath;
+        }
+        catch
+        {
+            Directory.Delete(referencePath, recursive: true);
+            throw;
+        }
+    }
+
+    private static DefaultAssemblyResolver BuildResolver(string path, string referencePath)
+    {
+        var resolver = new FrameworkFirstAssemblyResolver(referencePath);
+        foreach (var searchDirectory in resolver.GetSearchDirectories())
+        {
+            resolver.RemoveSearchDirectory(searchDirectory);
+        }
+
+        resolver.AddSearchDirectory(referencePath);
+        resolver.AddSearchDirectory(Path.Combine(referencePath, "Facades"));
+        resolver.AddSearchDirectory(path);
 
         resolver.AddSearchDirectory(Path.Combine(path, "HATDependencies", "MonoMod"));
         resolver.AddSearchDirectory(Path.Combine(path, "HATDependencies", "FEZRepacker.Core"));
 
         return resolver;
+    }
+
+    private sealed class FrameworkFirstAssemblyResolver : DefaultAssemblyResolver
+    {
+        private readonly string _referencePath;
+
+        private readonly Dictionary<string, AssemblyDefinition> _frameworkAssemblies = new(StringComparer.OrdinalIgnoreCase);
+
+        public FrameworkFirstAssemblyResolver(string referencePath)
+        {
+            _referencePath = referencePath;
+        }
+
+        public override AssemblyDefinition Resolve(AssemblyNameReference name)
+        {
+            var referenceFile = FindFrameworkReference(name.Name);
+            if (referenceFile is null)
+            {
+                return base.Resolve(name);
+            }
+
+            return ResolveFrameworkReference(name, referenceFile);
+        }
+
+        public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
+        {
+            var referenceFile = FindFrameworkReference(name.Name);
+            if (referenceFile is null)
+            {
+                return base.Resolve(name, parameters);
+            }
+
+            return ResolveFrameworkReference(name, referenceFile);
+        }
+
+        private AssemblyDefinition ResolveFrameworkReference(AssemblyNameReference name, string referenceFile)
+        {
+            if (_frameworkAssemblies.TryGetValue(name.FullName, out var assembly))
+            {
+                return assembly;
+            }
+
+            assembly = AssemblyDefinition.ReadAssembly(referenceFile, new ReaderParameters
+            {
+                AssemblyResolver = this,
+                ReadingMode = ReadingMode.Deferred
+            });
+
+            _frameworkAssemblies.Add(name.FullName, assembly);
+            return assembly;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (var assembly in _frameworkAssemblies.Values)
+                {
+                    assembly.Dispose();
+                }
+
+                _frameworkAssemblies.Clear();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        private string? FindFrameworkReference(string assemblyName)
+        {
+            var fileName = assemblyName + ".dll";
+            var referenceFile = Path.Combine(_referencePath, fileName);
+            if (File.Exists(referenceFile))
+            {
+                return referenceFile;
+            }
+
+            var facadeFile = Path.Combine(_referencePath, "Facades", fileName);
+            return File.Exists(facadeFile) ? facadeFile : null;
+        }
+    }
+
+    private static bool IsFrameworkImplementationDependency(
+        ModuleDefinition main,
+        string name,
+        string fullName,
+        string referencePath)
+    {
+        var modulePath = main.FileName;
+        if (string.IsNullOrEmpty(modulePath))
+        {
+            return false;
+        }
+
+        var referenceRoot = Path.GetFullPath(referencePath) + Path.DirectorySeparatorChar;
+        if (!Path.GetFullPath(modulePath).StartsWith(referenceRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return FrameworkImplementationAssemblies.Any(assemblyName =>
+            name.Equals(assemblyName, StringComparison.OrdinalIgnoreCase) ||
+            name.Equals(assemblyName + ".dll", StringComparison.OrdinalIgnoreCase) ||
+            fullName.StartsWith(assemblyName + ",", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void SetupCoreClrLauncher(string path)
@@ -360,14 +484,17 @@ public static class Program
         var launcherName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? "HAT.Launcher.exe"
             : "HAT.Launcher";
-        
+
         var launcherPath = Path.Combine(basePath, launcherName);
         var temporaryLauncher = launcherPath + ".tmp";
 
         Console.WriteLine($"[HAT] Installing CoreCLR launcher {launcherName}");
-        using var source = GetResource(HatLauncherResource);
-        using var destination = File.Create(temporaryLauncher);
-        source.CopyTo(destination);
+        using (var source = GetResource(HatLauncherResource))
+        using (var destination = File.Create(temporaryLauncher))
+        {
+            source.CopyTo(destination);
+        }
+
         File.Move(temporaryLauncher, launcherPath, overwrite: true);
 
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

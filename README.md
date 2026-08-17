@@ -24,10 +24,6 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 The original `FEZ.exe` and its platform launcher remain unchanged and continue to use the game's original .NET Framework or Mono runtime. HAT runs the patched `HAT.exe` through its own self-contained .NET 8 CoreCLR launcher.
 
-> [!NOTE]
-> 
-> Linux/macOS requires system Mono (`mono` or similar package) for HAT installation.
-
 ## Adding mods
 
 1. On first HAT launch, `Mods` directory should be created in the executable's directory. If not, create it.
