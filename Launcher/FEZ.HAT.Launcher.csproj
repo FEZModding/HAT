@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and $([System.String]::Copy('$(NETCoreSdkRuntimeIdentifier)').StartsWith('win-'))">win-x86</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and $([System.String]::Copy('$(NETCoreSdkRuntimeIdentifier)').StartsWith('linux-'))">linux-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and $([System.String]::Copy('$(NETCoreSdkRuntimeIdentifier)').StartsWith('osx-'))">osx-x64</RuntimeIdentifier>
+    <OutputType Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">WinExe</OutputType>
+    <OutputType Condition="!$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">Exe</OutputType>
+    <TargetFramework Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="!$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">net8.0</TargetFramework>
+    <PlatformTarget Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">x86</PlatformTarget>
+    <PlatformTarget Condition="!$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">x64</PlatformTarget>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <UseWindowsForms Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">true</UseWindowsForms>
+    <UseSystemDrawing Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">true</UseSystemDrawing>
+    <ApplicationIcon Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">..\Installer\HAT.ico</ApplicationIcon>
+    <AssemblyName>HAT.Launcher</AssemblyName>
+    <RootNamespace>FEZ.HAT.Launcher</RootNamespace>
+    <LangVersion>11</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <NuGetAudit>false</NuGetAudit>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <Target Name="ValidateRuntimeIdentifier" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(RuntimeIdentifier)' != 'win-x86' and '$(RuntimeIdentifier)' != 'linux-x64' and '$(RuntimeIdentifier)' != 'osx-x64'"
+           Text="Unsupported HAT launcher runtime '$(RuntimeIdentifier)'. Expected win-x86, linux-x64, or osx-x64." />
+  </Target>
+
+</Project>

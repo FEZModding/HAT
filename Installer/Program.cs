@@ -2,10 +2,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using AsmResolver;
-using AsmResolver.PE;
-using AsmResolver.PE.Builder;
-using AsmResolver.PE.Win32Resources.Icon;
 using Microsoft.Win32;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -19,10 +15,13 @@ public static class Program
 
     private const string HatExecutable = "HAT.exe";
 
+    private const string HatLauncherResource = "HAT.Launcher";
+
     private const string MonoRoot = "/usr/lib/mono";
 
-    private static string? UserFezPath = null;
-    private static string? UserMonoRoot = null;
+    private static string? _userFezPath;
+
+    private static string? _userMonoRoot;
 
     public static void Main(string[] args)
     {
@@ -34,8 +33,7 @@ public static class Program
             {
                 ExtractHatDependencies(fezPath);
                 var hatPath = PatchExecutable(fezPath);
-                ReplaceExecutableIcon(hatPath);
-                PostInstallationSetup(hatPath);
+                SetupCoreClrLauncher(hatPath);
             }
         }
         catch (InstallerException ex)
@@ -94,10 +92,10 @@ public static class Program
             switch (queue.Dequeue().ToLowerInvariant())
             {
                 case "-p" or "--path":
-                    UserFezPath = Path.GetFullPath(queue.Dequeue());
+                    _userFezPath = Path.GetFullPath(queue.Dequeue());
                     break;
                 case "-m" or "--mono-path":
-                    UserMonoRoot = Path.GetFullPath(queue.Dequeue());
+                    _userMonoRoot = Path.GetFullPath(queue.Dequeue());
                     break;
             }
         }
@@ -108,8 +106,10 @@ public static class Program
         var path = string.Empty;
         {
             Console.WriteLine("[HAT] Checking CLI \"--path\" or \"-p\" argument");
-            if (UserFezPath != null)
-                path = UserFezPath;
+            if (_userFezPath != null)
+            {
+                path = _userFezPath;
+            }
         }
 
         if (string.IsNullOrEmpty(path))
@@ -305,8 +305,8 @@ public static class Program
             string? monoPath = null;
 
             Console.WriteLine("[HAT] Checking CLI \"--mono-path\" or \"-m\" argument");
-            if (UserMonoRoot != null) {
-                monoPath = UserMonoRoot;
+            if (_userMonoRoot != null) {
+                monoPath = _userMonoRoot;
             }
 
             if (string.IsNullOrEmpty(monoPath)) {
@@ -349,101 +349,45 @@ public static class Program
         return resolver;
     }
 
-    private static void ReplaceExecutableIcon(string path)
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return;
-        }
-
-        Console.WriteLine("[HAT] Patching executable icon");
-
-        using var stream = GetResource("HAT.ico");
-        var iconData = new byte[stream.Length];
-        stream.ReadExactly(iconData);
-
-        // Parse ISO directory entry (first entry at offset 6)
-        const int entryOffset = 6;
-        var width = iconData[entryOffset];
-        var height = iconData[entryOffset + 1];
-        var colorCount = iconData[entryOffset + 2];
-        var planes = (ushort)BitConverter.ToInt16(iconData, entryOffset + 4);
-        var bpp = (ushort)BitConverter.ToInt16(iconData, entryOffset + 6);
-        var imageSize = BitConverter.ToInt32(iconData, entryOffset + 8);
-        var imageOffset = BitConverter.ToInt32(iconData, entryOffset + 12);
-        var pixelData = iconData.Skip(imageOffset).Take(imageSize).ToArray();
-
-        var image = PEImage.FromFile(path);
-        var iconResource = IconResource.FromDirectory(image.Resources!, IconType.Icon);
-
-        var group = iconResource!.Groups.First();
-        var entry = group.Icons.OrderByDescending(i => i.Width).First();
-        entry.PixelData = new DataSegment(pixelData);
-        entry.Width = width == 0 ? (byte)255 : width; // 0 in ICO = 256, but byte max is 255
-        entry.Height = height == 0 ? (byte)255 : height;
-        entry.ColorCount = colorCount;
-        entry.Planes = planes;
-        entry.BitsPerPixel = bpp;
-
-        iconResource.InsertIntoDirectory(image.Resources!);
-
-        var tempPath = path + ".tmp";
-        var builder = new ManagedPEFileBuilder();
-        builder.CreateFile(image).Write(tempPath);
-        File.Move(tempPath, path, overwrite: true);
-    }
-
-    private static void PostInstallationSetup(string path)
+    private static void SetupCoreClrLauncher(string path)
     {
         if (string.IsNullOrEmpty(path))
         {
             return;
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        var basePath = Path.GetDirectoryName(path)!;
+        var launcherName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "HAT.Launcher.exe"
+            : "HAT.Launcher";
+        
+        var launcherPath = Path.Combine(basePath, launcherName);
+        var temporaryLauncher = launcherPath + ".tmp";
+
+        Console.WriteLine($"[HAT] Installing CoreCLR launcher {launcherName}");
+        using var source = GetResource(HatLauncherResource);
+        using var destination = File.Create(temporaryLauncher);
+        source.CopyTo(destination);
+        File.Move(temporaryLauncher, launcherPath, overwrite: true);
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Console.WriteLine("Done! Run HAT.exe to launch the modded game.");
-            return;
+            File.SetUnixFileMode(launcherPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
         }
 
-        // Copy the monokickstart binaries so that /proc/self/exe resolves to
-        // HAT.bin.*, causing the embedded Mono runtime to load HAT.exe instead of FEZ.exe
-        Console.WriteLine("[HAT] Copying MonoKickstart");
-        var basePath2 = Path.GetDirectoryName(path)!;
-        var kickstartBinaries = new Dictionary<string, string>
+        foreach (var obsoleteName in new[] { "HAT", "HAT.sh", "HAT.bin.x86", "HAT.bin.x86_64", "HAT.bin.osx" })
         {
-            ["FEZ.bin.x86"] = "HAT.bin.x86",
-            ["FEZ.bin.x86_64"] = "HAT.bin.x86_64",
-            ["FEZ.bin.osx"] = "HAT.bin.osx"
-        };
-
-        foreach (var (src, dst) in kickstartBinaries)
-        {
-            var srcPath = Path.Combine(basePath2, src);
-            if (File.Exists(srcPath))
+            var obsoletePath = Path.Combine(basePath, obsoleteName);
+            if (!string.Equals(obsoletePath, launcherPath, StringComparison.Ordinal) && File.Exists(obsoletePath))
             {
-                File.Copy(srcPath, Path.Combine(basePath2, dst), overwrite: true);
+                File.Delete(obsoletePath);
             }
         }
 
-        // Copy launch script mirroring the original FEZ script
-        Console.WriteLine("[HAT] Creating launch script");
-        var script = path.Replace(HatExecutable, "HAT");
-        using (var stream = GetResource("HAT.sh"))
-        {
-            using (var file = File.Create(script))
-            {
-                stream.CopyTo(file);
-            }
-        }
-
-        // chmod +x
-        File.SetUnixFileMode(script,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-            UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-            UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-
-        Console.WriteLine("Done! Run ./HAT to launch the modded game.");
+        Console.WriteLine($"Done! Run {launcherName} to launch the modded game through CoreCLR.");
     }
 
     private static void WaitForUserInput()

@@ -20,7 +20,9 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 2. Run the installer. FEZ will be detected automatically from your Steam or GOG library. If detection fails, drop the installer into your FEZ game folder and run it from there, or use `--path <dir>`.
 
-3. Run `HAT.exe` (Windows) or `./HAT.sh` (Linux/macOS) and enjoy modding!
+3. Run `HAT.Launcher.exe` (Windows) or `./HAT.Launcher` (Linux/macOS) and enjoy modding!
+
+The original `FEZ.exe` and its platform launcher remain unchanged and continue to use the game's original .NET Framework or Mono runtime. HAT runs the patched `HAT.exe` through its own self-contained .NET 8 CoreCLR launcher.
 
 > [!NOTE]
 > 
@@ -30,13 +32,15 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 1. On first HAT launch, `Mods` directory should be created in the executable's directory. If not, create it.
 2. Download the mod's archive and put it in this directory.
-3. Start the game with `HAT.exe` / `./HAT.sh` and enjoy your mod!
+3. Start the game with `HAT.Launcher.exe` / `./HAT.Launcher` and enjoy your mod!
 
 It's that simple!
 
 ## Building HAT
 
 HAT is now using stripped game binaries and NuGet packages for building process, so it is not required to configure anything. Building HAT libraries should be as easy as cloning the repository and running the building process within the IDE of your choice (or through dotnet CLI if that's your thing).
+
+The installer is built from `Installer/FEZ.HAT.Installer.csproj`; publishing it automatically builds and embeds the matching `Launcher/FEZ.HAT.Launcher.csproj` output. The Windows launcher must remain x86 because the original release bundles x86 native libraries; Linux and macOS use their original x64 libraries.
 
 ## "Documentation"
 

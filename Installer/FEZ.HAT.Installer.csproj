@@ -1,49 +1,49 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AssemblyName>HATinstaller</AssemblyName>
     <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>HAT.ico</ApplicationIcon>
     <LangVersion>11</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ApplicationIcon>HAT.ico</ApplicationIcon>
-    <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AsmResolver" Version="6.0.0-rc.1"/>
-    <PackageReference Include="AsmResolver.PE" Version="6.0.0-rc.1"/>
-    <PackageReference Include="AsmResolver.PE.Win32Resources" Version="6.0.0-rc.1"/>
     <PackageReference Include="GitInfo" Version="3.6.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="MonoMod" Version="22.7.31.1"/>
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="HAT.txt" LogicalName="HAT.txt"/>
-    <EmbeddedResource Include="HAT.sh" LogicalName="HAT.sh"/>
-    <EmbeddedResource Include="HAT.ico" LogicalName="HAT.ico"/>
+    <EmbeddedResource Include="HAT.txt" LogicalName="HAT.txt" />
+    <EmbeddedResource Include="HAT.ico" LogicalName="HAT.ico" />
+    <EmbeddedResource Include="$(NetCoreRoot)LICENSE.txt"
+                      Condition="Exists('$(NetCoreRoot)LICENSE.txt')"
+                      LogicalName="dotnet-LICENSE.txt" />
+    <EmbeddedResource Include="$(NetCoreRoot)ThirdPartyNotices.txt"
+                      Condition="Exists('$(NetCoreRoot)ThirdPartyNotices.txt')"
+                      LogicalName="dotnet-ThirdPartyNotices.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Plugin\FEZ.HAT.mm.csproj">
       <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
     </ProjectReference>
+    <EmbeddedResource Include="..\Plugin\bin\$(Configuration)\HAT.zip"
+                      LogicalName="HAT.zip"
+                      Condition="Exists('..\Plugin\bin\$(Configuration)\HAT.zip')" />
   </ItemGroup>
 
-  <!-- Rider design-time: resolve ThisAssembly even before HAT.zip exists -->
-  <ItemGroup>
-    <EmbeddedResource Include="..\Plugin\bin\$(Configuration)\HAT.zip" LogicalName="HAT.zip"
-                      Condition="Exists('..\Plugin\bin\$(Configuration)\HAT.zip')"/>
-  </ItemGroup>
-
-  <Import Project="ZIPHat.targets"/>
+  <Import Project="HATLauncher.targets" />
+  <Import Project="ZIPHat.targets" />
 
 </Project>

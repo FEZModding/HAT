@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="Plugin\FEZ.HAT.mm.csproj" />
+  <Project Path="Launcher\FEZ.HAT.Launcher.csproj" />
   <Project Path="Installer\FEZ.HAT.Installer.csproj" />
 </Solution>

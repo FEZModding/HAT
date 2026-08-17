@@ -1,0 +1,45 @@
+<Project>
+
+  <PropertyGroup>
+    <HatLauncherProject>$(MSBuildThisFileDirectory)..\Launcher\FEZ.HAT.Launcher.csproj</HatLauncherProject>
+    <HatLauncherArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-launchers</HatLauncherArtifacts>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">
+    <HatLauncherRid>win-x86</HatLauncherRid>
+    <HatLauncherFile>HAT.Launcher.exe</HatLauncherFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
+    <HatLauncherRid>linux-x64</HatLauncherRid>
+    <HatLauncherFile>HAT.Launcher</HatLauncherFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">
+    <HatLauncherRid>osx-x64</HatLauncherRid>
+    <HatLauncherFile>HAT.Launcher</HatLauncherFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(HatLauncherArtifacts)\$(HatLauncherRid)\$(HatLauncherFile)"
+                      LogicalName="HAT.Launcher" />
+  </ItemGroup>
+
+  <Target Name="BuildHatLauncher"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'"
+          Inputs="$(HatLauncherProject);$(MSBuildThisFileDirectory)..\Launcher\Program.cs;$(MSBuildThisFileDirectory)HAT.ico"
+          Outputs="$(HatLauncherArtifacts)\$(HatLauncherRid)\$(HatLauncherFile)">
+    <Error Condition="'$(HatLauncherRid)' == ''"
+           Text="The installer runtime '$(RuntimeIdentifier)' does not have a supported HAT launcher." />
+    <Exec Command="dotnet publish &quot;$(HatLauncherProject)&quot; -c Release -r $(HatLauncherRid) --self-contained true -o &quot;$(HatLauncherArtifacts)\$(HatLauncherRid)&quot; --artifacts-path &quot;$(HatLauncherArtifacts)\build\$(HatLauncherRid)&quot; --nologo -v:minimal --disable-build-servers" />
+  </Target>
+
+  <Target Name="ValidateHatLauncher"
+          BeforeTargets="PrepareResources"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('$(HatLauncherArtifacts)\$(HatLauncherRid)\$(HatLauncherFile)')"
+           Text="The $(HatLauncherRid) HAT launcher payload is missing." />
+  </Target>
+
+</Project>
