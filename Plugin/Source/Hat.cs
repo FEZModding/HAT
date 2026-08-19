@@ -23,6 +23,8 @@ namespace HatModLoader.Source
 
         public AssetManager AssetManager { get; private set; }
 
+        internal TextResourceManager TextResources { get; }
+
         public WorldsManifest Worlds { get; private set; }
 
         public int InvalidModsCount { get; private set; }
@@ -47,6 +49,7 @@ namespace HatModLoader.Source
         {
             Instance = this;
             _fezGame = fez;
+            TextResources = new TextResourceManager(this);
             AssetManager = new AssetManager(this);
             AssetManager.InitializeHooks();
         }
@@ -191,6 +194,11 @@ namespace HatModLoader.Source
 
             foreach (var asset in changedAssets)
             {
+                if (TextResourceManager.IsTextResource(asset))
+                {
+                    continue;
+                }
+
                 if (asset.IsRemoved)
                 {
                     AssetManager.RemoveAsset(asset);
@@ -210,6 +218,11 @@ namespace HatModLoader.Source
             }
 
             Logger.Log("HAT", $"Reloaded {changedAssets.Count} asset(s)");
+
+            if (changedAssets.Any(TextResourceManager.IsTextResource))
+            {
+                TextResources.Reload();
+            }
 
             var levelManager = ServiceHelper.Get<IGameLevelManager>();
             var currentLevel = levelManager.Name;

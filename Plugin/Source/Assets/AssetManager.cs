@@ -86,8 +86,10 @@ namespace HatModLoader.Source.Assets
 
             foreach (var asset in GetOrderedAssets())
             {
-                if (asset.IsMusicFile) continue;
-                cachedAssets[asset.AssetPath] = asset.Data;
+                if (!asset.IsMusicFile && !TextResourceManager.IsTextResource(asset))
+                {
+                    cachedAssets[asset.AssetPath] = asset.Data;
+                }
             }
 
             Logger.Log("HAT", "Asset injection completed!");

@@ -44,6 +44,18 @@ As an example, here's an instruction on how to change Gomez's house background p
 
 A small note regarding music files: since they're normally stored in a separate `.pak` archive (`Music.pak`) and handled by a separate subsystem, music files are organized in a root directory. It is **not** the case for HAT mods, and instead it looks for OGG files (audio format used by music in this game) in `[Your mod]/Assets/Music` directory, then uses a path relative to this directory to identify the music file. For example, in order to replace `villageville\bed` music file, your new music file needs to be located at `[Your mod]/Assets/Music/villageville/bed.ogg`.
 
+### Adding custom text
+
+To add localized text without replacing FEZ's text resources, place a `ModText.xnb` file in `[Your mod]/Assets/Resources`. It must contain the same `Dictionary<string, Dictionary<string, string>>` structure as FEZ's text resources: the outer key is a two-letter language code, and the empty string is the fallback language.
+
+`ModText.xnb` is checked before FEZ's `StaticText`, `GameText`, and `CreditsText` resources. It can add custom keys or override existing text without replacing an entire FEZ resource. If multiple mods define the same key, the mod loaded later wins.
+
+Code mods should use `FezGame.Tools.ModText` to read their custom keys. `GetString` and `TryGetString` use the active language before the empty-string fallback; `GetStringRaw` uses only the fallback language.
+
+```csharp
+var dialogue = ModText.GetString("MY_MOD_INTRO");
+```
+
 ## Creating custom logic mod
 
 Mod loader loads library file given in metadata as an assembly, then attempts to create instances of every non-abstract public class extending the `GameComponent` class before initialization (before any services are created). After the game has been initialized (that is, as soon as all necessary services are initiated), it adds created instances into the list of game's components and initializes them, allowing their `Update` and `Draw` (use `DrawableGameComponent`) to be properly executed within the game's loop.
