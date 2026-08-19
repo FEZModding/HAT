@@ -56,6 +56,30 @@ Code mods should use `FezGame.Tools.ModText` to read their custom keys. `GetStri
 var dialogue = ModText.GetString("MY_MOD_INTRO");
 ```
 
+### Creating a standalone language pack
+
+Language packs are independent of mods. Put a folder or ZIP archive in `FEZ/Languages`; a pack must contain `Language.xml` and an `Assets` directory. ZIP archives contain the pack root directly, rather than an additional enclosing directory.
+
+```xml
+<Language>
+  <Code>nl</Code>
+  <DisplayName>Dutch</DisplayName>
+  <Locale>LanguageDutch</Locale>
+  <SmallFont>Fonts\Latin Small</SmallFont>
+  <BigFont>Fonts\Latin Big</BigFont>
+</Language>
+```
+
+`Code` is a required lowercase two-letter code. `DisplayName` is the stable English name stored in settings. `Locale` is an optional StaticText key, such as `LanguageDutch`, used to localize the slider label; when it is absent or untranslated, `DisplayName` is used. `SmallFont` and `BigFont` are required asset paths, relative to `Assets`, without the `.xnb` extension. The declared font assets must exist in the pack.
+
+Place translated FEZ resources at these normal asset paths:
+
+- `Assets/Resources/StaticText.xnb`
+- `Assets/Resources/GameText.xnb`
+- `Assets/Resources/CreditsText.xnb`
+
+Each resource uses FEZ's existing `Dictionary<string, Dictionary<string, string>>` format. Use the pack code (`nl` in the example) as its localized dictionary key. Missing resource keys fall back to FEZ's original language text.
+
 ## Creating custom logic mod
 
 Mod loader loads library file given in metadata as an assembly, then attempts to create instances of every non-abstract public class extending the `GameComponent` class before initialization (before any services are created). After the game has been initialized (that is, as soon as all necessary services are initiated), it adds created instances into the list of game's components and initializes them, allowing their `Update` and `Draw` (use `DrawableGameComponent`) to be properly executed within the game's loop.

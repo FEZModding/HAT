@@ -6,6 +6,7 @@ using FezGame.Services;
 using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
+using HatModLoader.Source.Languages;
 using HatModLoader.Source.ModDefinition;
 using HatModLoader.Source.Worlds;
 
@@ -24,6 +25,8 @@ namespace HatModLoader.Source
         public AssetManager AssetManager { get; private set; }
 
         internal TextResourceManager TextResources { get; }
+
+        internal LanguagePackManager LanguagePacks { get; }
 
         public WorldsManifest Worlds { get; private set; }
 
@@ -50,6 +53,7 @@ namespace HatModLoader.Source
             Instance = this;
             _fezGame = fez;
             TextResources = new TextResourceManager(this);
+            LanguagePacks = new LanguagePackManager();
             AssetManager = new AssetManager(this);
             AssetManager.InitializeHooks();
         }
@@ -64,13 +68,12 @@ namespace HatModLoader.Source
                 {
                     ResolveDependencies(mods);
                     LoadMods();
-                    Worlds = new WorldsManifest(Mods);
-                    InitializeAssemblies();
-                    return; // HAT initialized
                 }
             }
 
-            Logger.Log("HAT", LogSeverity.Warning, "Skip the initialization process...");
+            LanguagePacks.Load();
+            Worlds = new WorldsManifest(Mods);
+            InitializeAssemblies();
         }
 
         private static bool GetModProxies(out IEnumerable<IFileProxy> proxies)
@@ -175,6 +178,7 @@ namespace HatModLoader.Source
 
         public void OnGameActivated()
         {
+            LanguagePacks.ReloadActivePack();
             var changedAssets = new List<Asset>();
             foreach (var mod in Mods)
             {

@@ -26,7 +26,10 @@ namespace FezGame.Tools
         public static extern bool orig_TryGetString(string tag, out string text);
         public static bool TryGetString(string tag, out string text)
         {
-            return Hat.Instance.TextResources.TryGetString(tag, TextLookupScope.Localized, out text) || orig_TryGetString(tag, out text);
+            return Hat.Instance.TextResources.TryGetString(tag, TextLookupScope.Localized, out text) ||
+                   Hat.Instance.LanguagePacks.TryGetDisplayName(tag, out text) ||
+                   Hat.Instance.LanguagePacks.TryGetText("Resources\\StaticText", tag, out text) ||
+                   orig_TryGetString(tag, out text);
         }
 
         [MethodImpl(MethodImplOptions.ForwardRef)]
@@ -50,27 +53,21 @@ namespace FezGame.Tools
         public static extern string orig_GetString(string tag);
         public static string GetString(string tag)
         {
-            if (TextPatch.TryGetRawString(tag, out var text))
-            {
-                return text;
-            }
-
-            return ModText.TryGetString(tag, out text) 
-                ? text :
-                orig_GetString(tag);
+            return TextPatch.TryGetRawString(tag, out var text) ||
+                   ModText.TryGetString(tag, out text) ||
+                   Hat.Instance.LanguagePacks.TryGetText("Resources\\GameText", tag, out text)
+                ? text
+                : orig_GetString(tag);
         }
 
         [MethodImpl(MethodImplOptions.ForwardRef)]
         public static extern string orig_GetStringRaw(string tag);
         public static string GetStringRaw(string tag)
         {
-            if (TextPatch.TryGetRawString(tag, out var text))
-            {
-                return text;
-            }
-
-            return ModText.TryGetStringRaw(tag, out text) 
-                ? text 
+            return TextPatch.TryGetRawString(tag, out var text) ||
+                   ModText.TryGetStringRaw(tag, out text) ||
+                   Hat.Instance.LanguagePacks.TryGetText("Resources\\GameText", tag, out text)
+                ? text
                 : orig_GetStringRaw(tag);
         }
     }
@@ -81,13 +78,10 @@ namespace FezGame.Tools
         public static extern string orig_GetString(string tag);
         public static string GetString(string tag)
         {
-            if (TextPatch.TryGetRawString(tag, out var text))
-            {
-                return text;
-            }
-
-            return ModText.TryGetStringRaw(tag, out text) 
-                ? text 
+            return TextPatch.TryGetRawString(tag, out var text) ||
+                   ModText.TryGetStringRaw(tag, out text) ||
+                   Hat.Instance.LanguagePacks.TryGetText("Resources\\CreditsText", tag, out text)
+                ? text
                 : orig_GetString(tag);
         }
     }
