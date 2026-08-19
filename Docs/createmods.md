@@ -31,7 +31,7 @@ All other fields are purely informational.
 
 ## Creating asset mod
 
-If you want to add new assets or override existing ones, create `Assets` directory within your mods directory. All valid files within it will be loaded as game assets with path relative to the `Assets` directory. Currently, the only supported format is `.xnb`, but in the future, a conversion from popular file formats will be implemented, allowing much easier modding process (for isntance, PNG files will be automatically converted to Texture2D assets). As of right now, there isn't really a good way of creating `.xnb` assets and you have to rely on [FEZRepacker](https://github.com/Krzyhau/FEZRepacker).
+If you want to add new assets or override existing ones, create an `Assets` directory within your mod directory. All valid files within it are loaded as game assets using paths relative to that directory. HAT supports compiled `.xnb` assets and the source formats produced by [FEZRepacker](https://github.com/FEZModding/FEZRepacker). FEZRepacker bundles, including their companion files, are converted to XNB data in memory when HAT loads the mod.
 
 As an example, here's an instruction on how to change Gomez's house background plane.
 
@@ -46,9 +46,9 @@ A small note regarding music files: since they're normally stored in a separate 
 
 ### Adding custom text
 
-To add localized text without replacing FEZ's text resources, place a `ModText.xnb` file in `[Your mod]/Assets/Resources`. It must contain the same `Dictionary<string, Dictionary<string, string>>` structure as FEZ's text resources: the outer key is a two-letter language code, and the empty string is the fallback language.
+To add localized text without replacing FEZ's text resources, place a `ModText` file in `[Your mod]/Assets/Resources`. It must contain the same `Dictionary<string, Dictionary<string, string>>` structure as FEZ's text resources: the outer key is a two-letter language code, and the empty string is the fallback language.
 
-`ModText.xnb` is checked before FEZ's `StaticText`, `GameText`, and `CreditsText` resources. It can add custom keys or override existing text without replacing an entire FEZ resource. If multiple mods define the same key, the mod loaded later wins.
+`ModText` is checked before FEZ's `StaticText`, `GameText`, and `CreditsText` resources. It can add custom keys or override existing text without replacing an entire FEZ resource. If multiple mods define the same key, the mod loaded later wins.
 
 Code mods should use `FezGame.Tools.ModText` to read their custom keys. `GetString` and `TryGetString` use the active language before the empty-string fallback; `GetStringRaw` uses only the fallback language.
 
@@ -74,9 +74,9 @@ Language packs are independent of mods. Put a folder or ZIP archive in `FEZ/Lang
 
 Place translated FEZ resources at these normal asset paths:
 
-- `Assets/Resources/StaticText.xnb`
-- `Assets/Resources/GameText.xnb`
-- `Assets/Resources/CreditsText.xnb`
+- `Assets/Resources/StaticText`
+- `Assets/Resources/GameText`
+- `Assets/Resources/CreditsText`
 
 Each resource uses FEZ's existing `Dictionary<string, Dictionary<string, string>>` format. Use the pack code (`nl` in the example) as its localized dictionary key. Missing resource keys fall back to FEZ's original language text.
 
