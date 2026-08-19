@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework;
 using MonoMod;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using HatModLoader.Source.Assets;
 
 namespace FezGame
 {
@@ -36,7 +37,7 @@ namespace FezGame
             HatML.Initialize();
             orig_Initialize();
             DrawingTools.Init();
-            Activated += (_, _) => HatML.OnGameActivated();
+            Activated += (_, _) => AssetHotReloader.OnGameActivated(HatML);
         }
 
         [MethodImpl(MethodImplOptions.ForwardRef)]

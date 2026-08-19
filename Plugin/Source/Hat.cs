@@ -27,8 +27,8 @@ namespace HatModLoader.Source
 
         public int InvalidModsCount { get; private set; }
 
-        public const string Version = ThisAssembly.Git.BaseVersion.Major + "." + 
-                                      ThisAssembly.Git.BaseVersion.Minor + "." + 
+        public const string Version = ThisAssembly.Git.BaseVersion.Major + "." +
+                                      ThisAssembly.Git.BaseVersion.Minor + "." +
                                       ThisAssembly.Git.BaseVersion.Patch;
 
         public const string CommitHash = ThisAssembly.Git.Branch + "-" + ThisAssembly.Git.Commit;
@@ -170,61 +170,6 @@ namespace HatModLoader.Source
             }
         }
 
-        public void OnGameActivated()
-        {
-            var changedAssets = new List<Asset>();
-            foreach (var mod in Mods)
-            {
-                foreach (var asset in mod.ReloadAssets())
-                {
-                    if (!asset.Extension.Equals(".fxc", StringComparison.OrdinalIgnoreCase))
-                    {
-                        changedAssets.Add(asset);
-                    }
-                }
-            }
-
-            if (changedAssets.Count < 1)
-            {
-                return;
-            }
-
-            foreach (var asset in changedAssets)
-            {
-                if (asset.IsRemoved)
-                {
-                    AssetManager.RemoveAsset(asset);
-                    if (!asset.IsMusicFile)
-                    {
-                        AssetManager.EvictFromCommon(asset.AssetPath);
-                    }
-                }
-                else
-                {
-                    AssetManager.InjectAsset(asset);
-                    if (!asset.IsMusicFile)
-                    {
-                        AssetManager.PatchInCommon(asset.AssetPath);
-                    }
-                }
-            }
-
-            Logger.Log("HAT", $"Reloaded {changedAssets.Count} asset(s)");
-
-            var levelManager = ServiceHelper.Get<IGameLevelManager>();
-            var currentLevel = levelManager.Name;
-            if (!string.IsNullOrEmpty(currentLevel))
-            {
-                var currentLevelAssetPath = "levels\\" + currentLevel.ToLower();
-                if (changedAssets.Any(a => a.AssetPath == currentLevelAssetPath))
-                {
-                    levelManager.Name = null;
-                    levelManager.ChangeLevel(currentLevel);
-                    Logger.Log("HAT", $"Reloading {currentLevel}...");
-                }
-            }
-        }
-
         public static void RegisterRequiredDependencyResolvers()
         {
             AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("MonoMod"));
@@ -233,10 +178,10 @@ namespace HatModLoader.Source
 
         private static IList<string> InitializeIgnoredModsList() =>
             LoadModsTextList("ignorelist.txt", "ignorelist.default.txt");
-        
+
         private static IList<string> InitializePriorityList() =>
             LoadModsTextList("prioritylist.txt", "prioritylist.default.txt");
-        
+
         private static IList<string> LoadModsTextList(string path, string defaultContentResourceName)
         {
             if (!Directory.Exists(ModsDirectory))
@@ -284,7 +229,7 @@ namespace HatModLoader.Source
             {
                 return string.Empty;
             }
-            
+
             using var resourceReader = new StreamReader(resourceStream);
             return resourceReader.ReadToEnd();
         }
