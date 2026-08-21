@@ -1,4 +1,5 @@
-﻿using FezEngine.Tools;
+﻿using System.Reflection;
+using FezEngine.Tools;
 using FezGame;
 using FezGame.Components;
 using FezGame.Services;
@@ -14,12 +15,17 @@ public class WorldManagementInstaller : IHatInstaller
     private IDetour _gameStateClearSaveFileHook;
     private IDetour _gameStateLoadLevelHook;
     private IDetour _worldMapNameHook;
+    private IDetour _createHolesHook;
     
     public void Install(Hat hat)
     {
         _gameStateClearSaveFileHook = new Hook(typeof(GameStateManager).GetMethod("ClearSaveFile"), GameStateClearSaveFileHook);
         _gameStateLoadLevelHook = new Hook(typeof(GameStateManager).GetMethod("LoadLevel"), GameStateLoadLevelHook);
         _worldMapNameHook = new ILHook(typeof(WorldMap).GetMethod("Initialize"), WorldMapCustomNameInject);
+        _createHolesHook = new ILHook(
+            typeof(BlackHolesHost).GetMethod("CreateHoles", BindingFlags.NonPublic | BindingFlags.Instance),
+            BlackHolesAlwaysEnabledListInject
+        );
     }
 
     private void GameStateClearSaveFileHook(Action<IGameStateManager> orig, IGameStateManager self)
@@ -54,7 +60,16 @@ public class WorldManagementInstaller : IHatInstaller
         cursor.GotoNext(i => i.MatchLdstr("MapTree"));
         cursor.Remove();
         cursor.EmitDelegate(static () => Hat.Instance.Worlds.GetCurrent().MapTree);
+    }
 
+    private void BlackHolesAlwaysEnabledListInject(ILContext il)
+    {
+        var cursor = new ILCursor(il);
+        cursor.GotoNext(i => i.MatchLdsfld(out var field) && field.Name == "AlwaysEnabledLevels");
+        cursor.GotoNext(i => i.MatchCall(out var method) && method.Name == "Contains");
+        cursor.Remove();
+        cursor.EmitDelegate(static (string[] _, string name) => 
+            Hat.Instance.Worlds.GetCurrent().AlwaysBlackHoleLevels.Contains(name, StringComparer.OrdinalIgnoreCase));
     }
 
     public void Uninstall()
@@ -62,5 +77,6 @@ public class WorldManagementInstaller : IHatInstaller
         _gameStateClearSaveFileHook?.Dispose();
         _gameStateLoadLevelHook?.Dispose();
         _worldMapNameHook?.Dispose();
+        _createHolesHook?.Dispose();
     }
 }
