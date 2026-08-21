@@ -65,7 +65,7 @@ namespace HatModLoader.Source.Worlds
         {
             foreach (var fieldDefinition in StartingSaveFields)
             {
-                if (string.IsNullOrEmpty(fieldDefinition.Value) || string.IsNullOrEmpty(fieldDefinition.Value))
+                if (string.IsNullOrEmpty(fieldDefinition.Name) || string.IsNullOrEmpty(fieldDefinition.Value))
                 {
                     continue;
                 }
