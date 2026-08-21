@@ -1,10 +1,9 @@
 ﻿using System.Reflection;
-using FezEngine.Tools;
+using FezEngine.Components.Scripting;
 using FezGame;
 using FezGame.Components;
 using FezGame.Services;
 using HatModLoader.Source;
-using HatModLoader.Source.Worlds;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 
@@ -16,6 +15,7 @@ public class WorldManagementInstaller : IHatInstaller
     private IDetour _gameStateLoadLevelHook;
     private IDetour _worldMapNameHook;
     private IDetour _createHolesHook;
+    private IDetour _dotSayHook;
     
     public void Install(Hat hat)
     {
@@ -26,6 +26,7 @@ public class WorldManagementInstaller : IHatInstaller
             typeof(BlackHolesHost).GetMethod("CreateHoles", BindingFlags.NonPublic | BindingFlags.Instance),
             BlackHolesAlwaysEnabledListInject
         );
+        _dotSayHook = new Hook(typeof(Fez).Assembly.GetType("FezGame.Services.Scripting.DotService").GetMethod("Say"), DotSayHook);
     }
 
     private void GameStateClearSaveFileHook(Action<IGameStateManager> orig, IGameStateManager self)
@@ -72,11 +73,27 @@ public class WorldManagementInstaller : IHatInstaller
             Hat.Instance.Worlds.GetCurrent().AlwaysBlackHoleLevels.Contains(name, StringComparer.OrdinalIgnoreCase));
     }
 
+    private LongRunningAction DotSayHook(
+        Func<object, string, bool, bool, LongRunningAction> orig, 
+        object self, string line, bool nearGomez, bool hideAfter
+    ) {
+        if (Hat.Instance.Worlds.GetCurrent().DotCensorship.Contains(line, StringComparer.OrdinalIgnoreCase))
+        {
+            // we want to cancel the entire dialogue tree
+            // returning disposed action so "ended" event will never be called
+            var stubAction = new LongRunningAction();
+            stubAction.Dispose();
+            return stubAction;
+        }
+        return orig(self, line, nearGomez, hideAfter);
+    }
+
     public void Uninstall()
     {
         _gameStateClearSaveFileHook?.Dispose();
         _gameStateLoadLevelHook?.Dispose();
         _worldMapNameHook?.Dispose();
         _createHolesHook?.Dispose();
+        _dotSayHook?.Dispose();
     }
 }

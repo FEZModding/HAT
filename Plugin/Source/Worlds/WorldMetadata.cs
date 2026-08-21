@@ -20,6 +20,7 @@ namespace HatModLoader.Source.Worlds
             Thumbnail = "Other Textures/map_screens/villageville_3d",
             StartingLevel = "GOMEZ_HOUSE_2D",
             StartingSaveFields = new List<SaveFieldDefinition>(),
+            DotCensorship = new List<string>(),
             AlwaysBlackHoleLevels = new List<string> { "NUZU_ABANDONED_B", "STARGATE_RUINS", "WALL_INTERIOR_HOLE" },
         };
 
@@ -31,6 +32,9 @@ namespace HatModLoader.Source.Worlds
         
         [XmlArray, XmlArrayItem("Field")]
         public List<SaveFieldDefinition> StartingSaveFields { get; set; } = new();
+        
+        [XmlArray, XmlArrayItem("Line")]
+        public List<string> DotCensorship { get; set; } = new();
         
         [XmlArray, XmlArrayItem("Level")]
         public List<string> AlwaysBlackHoleLevels { get; set; } = new();
