@@ -51,19 +51,10 @@ public class WorldManagementInstaller : IHatInstaller
     private void WorldMapCustomNameInject(ILContext il)
     {
         var cursor = new ILCursor(il);
-
         cursor.GotoNext(i => i.MatchLdstr("MapTree"));
         cursor.Remove();
+        cursor.EmitDelegate(static () => Hat.Instance.Worlds.GetCurrent().MapTree);
 
-        cursor.EmitDelegate(static () =>
-        {
-            var saveData = ServiceHelper.Get<IGameStateManager>().SaveData;
-            if (!Hat.Instance.Worlds.TryGetFromSave(saveData, out var world))
-            {
-                world = WorldMetadata.Fez;
-            }
-            return world.MapTree;
-        });
     }
 
     public void Uninstall()

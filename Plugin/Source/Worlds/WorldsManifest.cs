@@ -1,4 +1,6 @@
 ﻿using Common;
+using FezEngine.Tools;
+using FezGame.Services;
 using FezGame.Structure;
 using HatModLoader.Source.ModDefinition;
 using HatModLoader.Source.Storage;
@@ -108,5 +110,15 @@ public class WorldsManifest
         }
         
         saveData.SetCustomData(CustomSaveDataKey, modContainer.Metadata.Name);
+    }
+
+    public WorldMetadata GetCurrent()
+    {
+        var saveData = ServiceHelper.Get<IGameStateManager>().SaveData;
+        if (Hat.Instance.Worlds.TryGetFromSave(saveData, out var world))
+        {
+            return world;
+        }
+        return WorldMetadata.Fez;
     }
 }
