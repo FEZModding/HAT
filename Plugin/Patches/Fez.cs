@@ -19,7 +19,7 @@ namespace FezGame
         public void ctor()
         {
             HatML = new Hat(this);
-            foreach (Type type in Assembly.GetExecutingAssembly().GetTypes()
+            foreach (Type type in GetLoadableTypes(Assembly.GetExecutingAssembly())
                 .Where(t => t.IsClass && typeof(IHatInstaller).IsAssignableFrom(t)))
             {
                 IHatInstaller installer = (IHatInstaller)Activator.CreateInstance(type);
@@ -56,6 +56,21 @@ namespace FezGame
         {
             InputHelper.Update(gameTime);
             orig_Update(gameTime);
+        }
+        
+        private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException exception)
+            {
+                // CoreCLR does not provide every .NET Framework desktop assembly.
+                // Optional game types may therefore be unavailable, but that should
+                // not prevent unrelated HAT installers from being discovered.
+                return exception.Types.Where(type => type != null);
+            }
         }
     }
 }
