@@ -608,32 +608,49 @@ public static class Program
     {
         var gameDirectory = Path.GetDirectoryName(managedAssemblyPath)!;
         var managedDirectory = Path.Combine(gameDirectory, "bin", "managed");
+        var referencePath = ExtractFrameworkReferences();
 
-        if (Directory.Exists(managedDirectory))
+        try
         {
-            Directory.Delete(managedDirectory, recursive: true);
-        }
-
-        var sourceAssemblies = DiscoverManagedAssemblies(managedAssemblyPath);
-        Directory.CreateDirectory(managedDirectory);
-
-        foreach (var source in sourceAssemblies.Values)
-        {
-            if (Path.GetFullPath(source.Path).Equals(
-                    Path.GetFullPath(managedAssemblyPath),
-                    StringComparison.OrdinalIgnoreCase))
+            if (Directory.Exists(managedDirectory))
             {
-                continue;
+                Directory.Delete(managedDirectory, recursive: true);
             }
 
-            var destination = Path.Combine(managedDirectory, Path.GetFileName(source.Path));
-            using var assembly = AssemblyDefinition.ReadAssembly(source.Path, new ReaderParameters
+            var sourceAssemblies = DiscoverManagedAssemblies(managedAssemblyPath);
+            Directory.CreateDirectory(managedDirectory);
+            using var resolver = BuildResolver(gameDirectory, referencePath);
+
+            foreach (var source in sourceAssemblies.Values)
             {
-                ReadingMode = ReadingMode.Immediate
-            });
-            assembly.MainModule.Attributes &=
-                ~(ModuleAttributes.Required32Bit | ModuleAttributes.Preferred32Bit);
-            assembly.Write(destination);
+                if (Path.GetFullPath(source.Path).Equals(
+                        Path.GetFullPath(managedAssemblyPath),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var destination = Path.Combine(managedDirectory, Path.GetFileName(source.Path));
+                using var assembly = AssemblyDefinition.ReadAssembly(source.Path, new ReaderParameters
+                {
+                    AssemblyResolver = resolver,
+                    ReadingMode = ReadingMode.Immediate
+                });
+                assembly.MainModule.Attributes &=
+                    ~(ModuleAttributes.Required32Bit | ModuleAttributes.Preferred32Bit);
+                assembly.Write(destination);
+            }
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(referencePath, recursive: true);
+            }
+            catch
+            {
+                // Do not mask the normalization result with temporary-file cleanup.
+            }
         }
     }
 

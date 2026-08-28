@@ -12,7 +12,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>false</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
