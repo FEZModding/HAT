@@ -517,9 +517,9 @@ public static class Program
         var appHostName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "HAT.exe" : "HAT";
         var appHostPath = Path.Combine(basePath, appHostName);
         var temporaryAppHost = appHostPath + ".tmp";
-        var runtimePath = Path.Combine(basePath, "bin", "dotnet");
+        var runtimePath = Path.Combine(basePath, "HATDependencies", "Runtime");
 
-        Console.WriteLine($"[HAT] Installing .NET 10 apphost {appHostName}");
+        Console.WriteLine($"[HAT] Copying CoreCLR app host {appHostName}");
         using (var source = GetResource(HatAppHostResource))
         using (var destination = File.Create(temporaryAppHost))
         {
@@ -528,7 +528,7 @@ public static class Program
 
         File.Move(temporaryAppHost, appHostPath, overwrite: true);
 
-        Console.WriteLine($"[HAT] Installing private .NET 10 runtime into {runtimePath}");
+        Console.WriteLine("[HAT] Unpacking CoreCLR runtime");
         if (Directory.Exists(runtimePath))
         {
             Directory.Delete(runtimePath, recursive: true);
@@ -570,7 +570,7 @@ public static class Program
             }
         }
 
-        Console.WriteLine($"Done! Run {appHostName} to launch the modded game through .NET 10.");
+        Console.WriteLine($"Done! Run {appHostName} to launch the modded game.");
     }
 
     private static void SetExecutable(string path)
@@ -606,7 +606,7 @@ public static class Program
     private static void PrepareManagedDependencies(string managedAssemblyPath)
     {
         var gameDirectory = Path.GetDirectoryName(managedAssemblyPath)!;
-        var managedDirectory = Path.Combine(gameDirectory, "bin", "managed");
+        var managedDirectory = Path.Combine(gameDirectory, "HATDependencies", "FEZ");
         var referencePath = ExtractFrameworkReferences();
 
         try
@@ -759,8 +759,8 @@ public static class Program
 
                 var dependencyPath = new[]
                     {
-                        Path.Combine(gameDirectory, "bin", "managed", reference.Name + ".dll"),
-                        Path.Combine(gameDirectory, "bin", "managed", reference.Name + ".exe"),
+                        Path.Combine(gameDirectory, "HATDependencies", "FEZ", reference.Name + ".dll"),
+                        Path.Combine(gameDirectory, "HATDependencies", "FEZ", reference.Name + ".exe"),
                         Path.Combine(gameDirectory, reference.Name + ".dll"),
                         Path.Combine(gameDirectory, reference.Name + ".exe")
                     }

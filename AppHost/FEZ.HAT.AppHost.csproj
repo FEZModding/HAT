@@ -15,7 +15,7 @@
     <PublishTrimmed>false</PublishTrimmed>
     <PublishReadyToRun>false</PublishReadyToRun>
     <AppHostDotNetSearch>AppRelative</AppHostDotNetSearch>
-    <AppHostRelativeDotNet>bin/dotnet</AppHostRelativeDotNet>
+    <AppHostRelativeDotNet>HATDependencies/Runtime</AppHostRelativeDotNet>
     <ApplicationIcon Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">..\Installer\HAT.ico</ApplicationIcon>
     <AssemblyName>HAT</AssemblyName>
     <RootNamespace>FEZ.HAT.AppHost</RootNamespace>
