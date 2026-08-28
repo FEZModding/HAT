@@ -19,6 +19,13 @@ namespace HatModLoader.Source
             new[] { typeof(string) },
             null);
 
+        private static readonly MethodInfo NativeLibraryTryLoad = NativeLibraryType?.GetMethod(
+            "TryLoad",
+            BindingFlags.Public | BindingFlags.Static,
+            null,
+            new[] { typeof(string), typeof(IntPtr).MakeByRefType() },
+            null);
+
         public static void Initialize()
         {
             Environment.CurrentDirectory = AppDomain.CurrentDomain.BaseDirectory;
@@ -108,7 +115,8 @@ namespace HatModLoader.Source
                 }
             }
 
-            return IntPtr.Zero;
+            // Mono dllmap also lets the operating system resolve mapped library names.
+            return TryLoadNativeLibrary(mappedName);
         }
 
         private static string MapLinuxLibrary(string name) => name switch
@@ -172,6 +180,19 @@ namespace HatModLoader.Source
             return NativeLibraryLoad == null
                 ? IntPtr.Zero
                 : (IntPtr)NativeLibraryLoad.Invoke(null, new object[] { path });
+        }
+
+        private static IntPtr TryLoadNativeLibrary(string name)
+        {
+            if (NativeLibraryTryLoad == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            var arguments = new object[] { name, IntPtr.Zero };
+            return (bool)NativeLibraryTryLoad.Invoke(null, arguments)
+                ? (IntPtr)arguments[1]
+                : IntPtr.Zero;
         }
     }
 }
