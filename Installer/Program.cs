@@ -259,34 +259,39 @@ public static class Program
         var referencePath = ExtractFrameworkReferences();
         try
         {
-            using var modder = new MonoModder();
-
-            modder.InputPath = path;
-            modder.OutputPath = Path.Combine(basePath, HatManagedAssembly);
-            modder.ReadingMode = ReadingMode.Deferred;
-            modder.AssemblyResolver = BuildResolver(basePath, referencePath);
-            modder.MissingDependencyThrow = true;
-            modder.MissingDependencyResolver = (currentModder, main, name, fullName) =>
-                IsFrameworkImplementationDependency(main, name, fullName, referencePath)
-                    ? null
-                    : currentModder.DefaultMissingDependencyResolver(currentModder, main, name, fullName);
-
-            modder.WriterParameters = new WriterParameters
+            string outputPath;
+            using (var modder = new MonoModder())
             {
-                SymbolWriterProvider = new PortablePdbWriterProvider(),
-                WriteSymbols = true
-            };
 
-            modder.Read();
-            modder.ReadMod(Path.Combine(basePath, "FEZ.HAT.mm.dll"));
-            modder.ReadMod(Path.Combine(basePath, "FEZ.Hooks.mm.dll"));
-            PrioritizeFrameworkDependencyDirectories(modder, referencePath);
-            modder.MapDependencies();
-            modder.AutoPatch();
-            PrepareForCoreClr(modder.Module);
-            modder.Write();
+                modder.InputPath = path;
+                modder.OutputPath = Path.Combine(basePath, HatManagedAssembly);
+                modder.ReadingMode = ReadingMode.Deferred;
+                modder.AssemblyResolver = BuildResolver(basePath, referencePath);
+                modder.MissingDependencyThrow = true;
+                modder.MissingDependencyResolver = (currentModder, main, name, fullName) =>
+                    IsFrameworkImplementationDependency(main, name, fullName, referencePath)
+                        ? null
+                        : currentModder.DefaultMissingDependencyResolver(currentModder, main, name, fullName);
 
-            return modder.OutputPath;
+                modder.WriterParameters = new WriterParameters
+                {
+                    SymbolWriterProvider = new PortablePdbWriterProvider(),
+                    WriteSymbols = true
+                };
+
+                modder.Read();
+                modder.ReadMod(Path.Combine(basePath, "FEZ.HAT.mm.dll"));
+                modder.ReadMod(Path.Combine(basePath, "FEZ.Hooks.mm.dll"));
+                PrioritizeFrameworkDependencyDirectories(modder, referencePath);
+                modder.MapDependencies();
+                modder.AutoPatch();
+                PrepareForCoreClr(modder.Module);
+                modder.Write();
+                outputPath = modder.OutputPath;
+            }
+
+            RemoveConsumedPatchInputs(basePath);
+            return outputPath;
         }
         finally
         {
@@ -297,6 +302,31 @@ public static class Program
             catch
             {
                 // Do not mask the patching result or its original error with cleanup failure.
+            }
+        }
+    }
+
+    private static void RemoveConsumedPatchInputs(string basePath)
+    {
+        foreach (var fileName in new[]
+                 {
+                     "FEZ.HAT.mm.dll", "FEZ.Hooks.mm.dll",
+                     "FEZ.HAT.mm.pdb", "FEZ.Hooks.mm.pdb"
+                 })
+        {
+            var path = Path.Combine(basePath, fileName);
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine($"[HAT] Could not remove consumed patch input {fileName}: {exception.Message}");
             }
         }
     }
@@ -528,7 +558,7 @@ public static class Program
 
         File.Move(temporaryAppHost, appHostPath, overwrite: true);
 
-        Console.WriteLine("[HAT] Unpacking CoreCLR runtime");
+        Console.WriteLine("[HAT] Extracting CoreCLR runtime");
         if (Directory.Exists(runtimePath))
         {
             Directory.Delete(runtimePath, recursive: true);
