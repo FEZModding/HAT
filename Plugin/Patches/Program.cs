@@ -12,6 +12,8 @@ namespace FezGame
 
         private static void Main(string[] args)
         {
+            CoreClrCompatibility.Initialize();
+
             // Ensuring that required dependencies can be resolved before anything else.
             Hat.RegisterRequiredDependencyResolvers();
 

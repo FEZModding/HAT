@@ -3,7 +3,7 @@
   <PropertyGroup>
     <AssemblyName>HATinstaller</AssemblyName>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationIcon>HAT.ico</ApplicationIcon>
@@ -12,7 +12,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
+    <PublishTrimmed>false</PublishTrimmed>
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 

@@ -1,45 +1,71 @@
 <Project>
 
   <PropertyGroup>
-    <HatLauncherProject>$(MSBuildThisFileDirectory)..\Launcher\FEZ.HAT.Launcher.csproj</HatLauncherProject>
-    <HatLauncherArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-launchers</HatLauncherArtifacts>
+    <HatAppHostProject>$(MSBuildThisFileDirectory)..\Launcher\FEZ.HAT.Launcher.csproj</HatAppHostProject>
+    <HatAppHostArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-apphosts</HatAppHostArtifacts>
+    <HatRuntimeArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-runtimes</HatRuntimeArtifacts>
+    <HatRuntimeVersion>10.0.11</HatRuntimeVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">
-    <HatLauncherRid>win-x86</HatLauncherRid>
-    <HatLauncherFile>HAT.Launcher.exe</HatLauncherFile>
+    <HatAppHostRid>win-x86</HatAppHostRid>
+    <HatAppHostFile>HAT.exe</HatAppHostFile>
+    <HatRuntimeArchiveFile>dotnet-runtime-$(HatRuntimeVersion)-win-x86.zip</HatRuntimeArchiveFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
-    <HatLauncherRid>linux-x64</HatLauncherRid>
-    <HatLauncherFile>HAT.Launcher</HatLauncherFile>
+    <HatAppHostRid>linux-x64</HatAppHostRid>
+    <HatAppHostFile>HAT</HatAppHostFile>
+    <HatRuntimeArchiveFile>dotnet-runtime-$(HatRuntimeVersion)-linux-x64.tar.gz</HatRuntimeArchiveFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">
-    <HatLauncherRid>osx-x64</HatLauncherRid>
-    <HatLauncherFile>HAT.Launcher</HatLauncherFile>
+    <HatAppHostRid>osx-x64</HatAppHostRid>
+    <HatAppHostFile>HAT</HatAppHostFile>
+    <HatRuntimeArchiveFile>dotnet-runtime-$(HatRuntimeVersion)-osx-x64.tar.gz</HatRuntimeArchiveFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <HatRuntimeArchive>$(HatRuntimeArtifacts)\$(HatRuntimeArchiveFile)</HatRuntimeArchive>
+    <HatRuntimeUrl>https://builds.dotnet.microsoft.com/dotnet/Runtime/$(HatRuntimeVersion)/$(HatRuntimeArchiveFile)</HatRuntimeUrl>
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="$(HatLauncherArtifacts)\$(HatLauncherRid)\$(HatLauncherFile)"
-                      LogicalName="HAT.Launcher" />
+    <EmbeddedResource Include="$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)"
+                      LogicalName="HAT.AppHost" />
+    <EmbeddedResource Include="$(HatRuntimeArchive)"
+                      LogicalName="HAT.Runtime" />
   </ItemGroup>
 
-  <Target Name="BuildHatLauncher"
+  <Target Name="BuildHatAppHost"
           BeforeTargets="PrepareForBuild"
           Condition="'$(DesignTimeBuild)' != 'true'"
-          Inputs="$(HatLauncherProject);$(MSBuildThisFileDirectory)..\Launcher\Program.cs;$(MSBuildThisFileDirectory)HAT.ico"
-          Outputs="$(HatLauncherArtifacts)\$(HatLauncherRid)\$(HatLauncherFile)">
-    <Error Condition="'$(HatLauncherRid)' == ''"
-           Text="The installer runtime '$(RuntimeIdentifier)' does not have a supported HAT launcher." />
-    <Exec Command="dotnet publish &quot;$(HatLauncherProject)&quot; -c Release -r $(HatLauncherRid) --self-contained true -o &quot;$(HatLauncherArtifacts)\$(HatLauncherRid)&quot; --artifacts-path &quot;$(HatLauncherArtifacts)\build\$(HatLauncherRid)&quot; --nologo -v:minimal --disable-build-servers" />
+          Inputs="$(HatAppHostProject);$(MSBuildThisFileDirectory)..\Launcher\Program.cs;$(MSBuildThisFileDirectory)HAT.ico"
+          Outputs="$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)">
+    <Error Condition="'$(HatAppHostRid)' == ''"
+           Text="The installer runtime '$(RuntimeIdentifier)' does not have a supported HAT apphost." />
+    <Exec Command="dotnet publish &quot;$(HatAppHostProject)&quot; -c Release -r $(HatAppHostRid) --self-contained false -o &quot;$(HatAppHostArtifacts)\$(HatAppHostRid)&quot; --artifacts-path &quot;$(HatAppHostArtifacts)\build\$(HatAppHostRid)&quot; --nologo -v:minimal" />
   </Target>
 
-  <Target Name="ValidateHatLauncher"
+  <Target Name="DownloadHatRuntime"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and !Exists('$(HatRuntimeArchive)')">
+    <MakeDir Directories="$(HatRuntimeArtifacts)" />
+    <Message Text="Downloading private .NET $(HatRuntimeVersion) runtime for $(HatAppHostRid)" Importance="high" />
+    <DownloadFile SourceUrl="$(HatRuntimeUrl)"
+                  DestinationFolder="$(HatRuntimeArtifacts)"
+                  DestinationFileName="$(HatRuntimeArchiveFile)"
+                  SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="ValidateHatRuntimePayloads"
           BeforeTargets="PrepareResources"
+          DependsOnTargets="BuildHatAppHost;DownloadHatRuntime"
           Condition="'$(DesignTimeBuild)' != 'true'">
-    <Error Condition="!Exists('$(HatLauncherArtifacts)\$(HatLauncherRid)\$(HatLauncherFile)')"
-           Text="The $(HatLauncherRid) HAT launcher payload is missing." />
+    <Error Condition="!Exists('$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)')"
+           Text="The $(HatAppHostRid) HAT apphost payload is missing." />
+    <Error Condition="!Exists('$(HatRuntimeArchive)')"
+           Text="The .NET $(HatRuntimeVersion) runtime payload for $(HatAppHostRid) is missing." />
   </Target>
 
 </Project>

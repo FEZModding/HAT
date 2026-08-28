@@ -1,6 +1,8 @@
 ﻿using System.IO.Compression;
+using System.Formats.Tar;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using Mono.Cecil;
@@ -13,9 +15,13 @@ public static class Program
 {
     private const string FezExecutable = "FEZ.exe";
 
-    private const string HatExecutable = "HAT.exe";
+    private const string HatManagedAssembly = "HAT.dll";
 
-    private const string HatLauncherResource = "HAT.Launcher";
+    private const string HatAppHostResource = "HAT.AppHost";
+
+    private const string HatRuntimeResource = "HAT.Runtime";
+
+    private const string CoreClrTargetFramework = ".NETCoreApp,Version=v10.0";
 
     private static readonly string[] FrameworkImplementationAssemblies =
     {
@@ -35,7 +41,7 @@ public static class Program
             {
                 ExtractHatDependencies(fezPath);
                 var hatPath = PatchExecutable(fezPath);
-                SetupCoreClrLauncher(hatPath);
+                SetupCoreClrDeployment(hatPath);
             }
         }
         catch (InstallerException ex)
@@ -256,7 +262,7 @@ public static class Program
             using var modder = new MonoModder();
 
             modder.InputPath = path;
-            modder.OutputPath = path.Replace(FezExecutable, HatExecutable);
+            modder.OutputPath = Path.Combine(basePath, HatManagedAssembly);
             modder.ReadingMode = ReadingMode.Deferred;
             modder.AssemblyResolver = BuildResolver(basePath, referencePath);
             modder.MissingDependencyThrow = true;
@@ -277,6 +283,7 @@ public static class Program
             PrioritizeFrameworkDependencyDirectories(modder, referencePath);
             modder.MapDependencies();
             modder.AutoPatch();
+            PrepareForCoreClr(modder.Module);
             modder.Write();
 
             return modder.OutputPath;
@@ -290,6 +297,32 @@ public static class Program
             catch
             {
                 // Do not mask the patching result or its original error with cleanup failure.
+            }
+        }
+    }
+
+    private static void PrepareForCoreClr(ModuleDefinition module)
+    {
+        module.Attributes &= ~(ModuleAttributes.Required32Bit | ModuleAttributes.Preferred32Bit);
+
+        var targetFramework = module.Assembly.CustomAttributes.FirstOrDefault(attribute =>
+            attribute.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
+        if (targetFramework == null || targetFramework.ConstructorArguments.Count == 0)
+        {
+            return;
+        }
+
+        targetFramework.ConstructorArguments[0] = new CustomAttributeArgument(
+            module.TypeSystem.String,
+            CoreClrTargetFramework);
+
+        for (var index = 0; index < targetFramework.Properties.Count; index++)
+        {
+            if (targetFramework.Properties[index].Name == "FrameworkDisplayName")
+            {
+                targetFramework.Properties[index] = new Mono.Cecil.CustomAttributeNamedArgument(
+                    "FrameworkDisplayName",
+                    new CustomAttributeArgument(module.TypeSystem.String, ".NET 10.0"));
             }
         }
     }
@@ -473,7 +506,7 @@ public static class Program
             fullName.StartsWith(assemblyName + ",", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static void SetupCoreClrLauncher(string path)
+    private static void SetupCoreClrDeployment(string path)
     {
         if (string.IsNullOrEmpty(path))
         {
@@ -481,41 +514,263 @@ public static class Program
         }
 
         var basePath = Path.GetDirectoryName(path)!;
-        var launcherName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            ? "HAT.Launcher.exe"
-            : "HAT.Launcher";
+        var appHostName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "HAT.exe" : "HAT";
+        var appHostPath = Path.Combine(basePath, appHostName);
+        var temporaryAppHost = appHostPath + ".tmp";
+        var runtimePath = Path.Combine(basePath, "bin", "dotnet");
 
-        var launcherPath = Path.Combine(basePath, launcherName);
-        var temporaryLauncher = launcherPath + ".tmp";
-
-        Console.WriteLine($"[HAT] Installing CoreCLR launcher {launcherName}");
-        using (var source = GetResource(HatLauncherResource))
-        using (var destination = File.Create(temporaryLauncher))
+        Console.WriteLine($"[HAT] Installing .NET 10 apphost {appHostName}");
+        using (var source = GetResource(HatAppHostResource))
+        using (var destination = File.Create(temporaryAppHost))
         {
             source.CopyTo(destination);
         }
 
-        File.Move(temporaryLauncher, launcherPath, overwrite: true);
+        File.Move(temporaryAppHost, appHostPath, overwrite: true);
+
+        Console.WriteLine($"[HAT] Installing private .NET 10 runtime into {runtimePath}");
+        if (Directory.Exists(runtimePath))
+        {
+            Directory.Delete(runtimePath, recursive: true);
+        }
+
+        Directory.CreateDirectory(runtimePath);
+        using (var runtime = GetResource(HatRuntimeResource))
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                ZipFile.ExtractToDirectory(runtime, runtimePath, overwriteFiles: true);
+            }
+            else
+            {
+                using var gzip = new GZipStream(runtime, CompressionMode.Decompress);
+                TarFile.ExtractToDirectory(gzip, runtimePath, overwriteFiles: true);
+            }
+        }
+
+        PrepareManagedDependencies(path);
+        WriteRuntimeConfiguration(path);
+        WriteDependencyManifest(path);
 
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            File.SetUnixFileMode(launcherPath,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+            SetExecutable(appHostPath);
+            SetExecutable(Path.Combine(runtimePath, "dotnet"));
         }
 
-        foreach (var obsoleteName in new[] { "HAT", "HAT.sh", "HAT.bin.x86", "HAT.bin.x86_64", "HAT.bin.osx" })
+        foreach (var obsoleteName in new[]
+                 {
+                     "HAT.Launcher", "HAT.Launcher.exe", "HAT.sh",
+                     "HAT.bin.x86", "HAT.bin.x86_64", "HAT.bin.osx"
+                 })
         {
             var obsoletePath = Path.Combine(basePath, obsoleteName);
-            if (!string.Equals(obsoletePath, launcherPath, StringComparison.Ordinal) && File.Exists(obsoletePath))
+            if (File.Exists(obsoletePath))
             {
                 File.Delete(obsoletePath);
             }
         }
 
-        Console.WriteLine($"Done! Run {launcherName} to launch the modded game through CoreCLR.");
+        Console.WriteLine($"Done! Run {appHostName} to launch the modded game through .NET 10.");
     }
+
+    private static void SetExecutable(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        File.SetUnixFileMode(path,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+    }
+
+    private static void WriteRuntimeConfiguration(string managedAssemblyPath)
+    {
+        var configurationPath = Path.ChangeExtension(managedAssemblyPath, ".runtimeconfig.json");
+        using var stream = File.Create(configurationPath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+
+        writer.WriteStartObject();
+        writer.WriteStartObject("runtimeOptions");
+        writer.WriteString("tfm", "net10.0");
+        writer.WriteStartObject("framework");
+        writer.WriteString("name", "Microsoft.NETCore.App");
+        writer.WriteString("version", "10.0.0");
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+
+    private static void PrepareManagedDependencies(string managedAssemblyPath)
+    {
+        var gameDirectory = Path.GetDirectoryName(managedAssemblyPath)!;
+        var managedDirectory = Path.Combine(gameDirectory, "bin", "managed");
+
+        if (Directory.Exists(managedDirectory))
+        {
+            Directory.Delete(managedDirectory, recursive: true);
+        }
+
+        var sourceAssemblies = DiscoverManagedAssemblies(managedAssemblyPath);
+        Directory.CreateDirectory(managedDirectory);
+
+        foreach (var source in sourceAssemblies.Values)
+        {
+            if (Path.GetFullPath(source.Path).Equals(
+                    Path.GetFullPath(managedAssemblyPath),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var destination = Path.Combine(managedDirectory, Path.GetFileName(source.Path));
+            using var assembly = AssemblyDefinition.ReadAssembly(source.Path, new ReaderParameters
+            {
+                ReadingMode = ReadingMode.Immediate
+            });
+            assembly.MainModule.Attributes &=
+                ~(ModuleAttributes.Required32Bit | ModuleAttributes.Preferred32Bit);
+            assembly.Write(destination);
+        }
+    }
+
+    private static void WriteDependencyManifest(string managedAssemblyPath)
+    {
+        var assemblies = DiscoverManagedAssemblies(managedAssemblyPath);
+        var assembliesByName = assemblies.Values.ToDictionary(
+            assembly => assembly.Name,
+            StringComparer.OrdinalIgnoreCase);
+        var manifestPath = Path.ChangeExtension(managedAssemblyPath, ".deps.json");
+
+        using var stream = File.Create(manifestPath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+
+        writer.WriteStartObject();
+        writer.WriteStartObject("runtimeTarget");
+        writer.WriteString("name", CoreClrTargetFramework);
+        writer.WriteString("signature", string.Empty);
+        writer.WriteEndObject();
+        writer.WriteStartObject("compilationOptions");
+        writer.WriteEndObject();
+
+        writer.WriteStartObject("targets");
+        writer.WriteStartObject(CoreClrTargetFramework);
+        foreach (var assembly in assemblies.Values)
+        {
+            writer.WriteStartObject($"{assembly.Name}/{assembly.Version}");
+            writer.WriteStartObject("runtime");
+            var relativeAssemblyPath = Path.GetRelativePath(
+                    Path.GetDirectoryName(managedAssemblyPath)!,
+                    assembly.Path)
+                .Replace(Path.DirectorySeparatorChar, '/');
+            writer.WriteStartObject(relativeAssemblyPath);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+
+            var localDependencies = assembly.References
+                .Where(reference => assembliesByName.ContainsKey(reference.Name))
+                .ToArray();
+            if (localDependencies.Length > 0)
+            {
+                writer.WriteStartObject("dependencies");
+                foreach (var reference in localDependencies)
+                {
+                    writer.WriteString(reference.Name, reference.Version.ToString());
+                }
+
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+
+        writer.WriteStartObject("libraries");
+        foreach (var assembly in assemblies.Values)
+        {
+            writer.WriteStartObject($"{assembly.Name}/{assembly.Version}");
+            writer.WriteString("type",
+                Path.GetFullPath(assembly.Path).Equals(
+                    Path.GetFullPath(managedAssemblyPath),
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "project"
+                    : "reference");
+            writer.WriteBoolean("serviceable", false);
+            writer.WriteString("sha512", string.Empty);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+
+    private static Dictionary<string, ManagedAssemblyInfo> DiscoverManagedAssemblies(string mainAssemblyPath)
+    {
+        var gameDirectory = Path.GetDirectoryName(mainAssemblyPath)!;
+        var assemblies = new Dictionary<string, ManagedAssemblyInfo>(StringComparer.OrdinalIgnoreCase);
+
+        void Discover(string assemblyPath)
+        {
+            assemblyPath = Path.GetFullPath(assemblyPath);
+            if (assemblies.ContainsKey(assemblyPath))
+            {
+                return;
+            }
+
+            using var assembly = AssemblyDefinition.ReadAssembly(assemblyPath, new ReaderParameters
+            {
+                ReadingMode = ReadingMode.Deferred
+            });
+
+            var info = new ManagedAssemblyInfo(
+                assemblyPath,
+                assembly.Name.Name,
+                assembly.Name.Version,
+                assembly.MainModule.AssemblyReferences.ToArray());
+            assemblies.Add(assemblyPath, info);
+
+            foreach (var reference in info.References)
+            {
+                if (IsFrameworkAssembly(reference.Name))
+                {
+                    continue;
+                }
+
+                var dependencyPath = new[]
+                    {
+                        Path.Combine(gameDirectory, "bin", "managed", reference.Name + ".dll"),
+                        Path.Combine(gameDirectory, "bin", "managed", reference.Name + ".exe"),
+                        Path.Combine(gameDirectory, reference.Name + ".dll"),
+                        Path.Combine(gameDirectory, reference.Name + ".exe")
+                    }
+                    .FirstOrDefault(File.Exists);
+                if (dependencyPath != null)
+                {
+                    Discover(dependencyPath);
+                }
+            }
+        }
+
+        Discover(mainAssemblyPath);
+        return assemblies;
+    }
+
+    private static bool IsFrameworkAssembly(string name)
+    {
+        return name is "mscorlib" or "netstandard" or "System" or "Microsoft.CSharp"
+               || name.StartsWith("System.", StringComparison.Ordinal);
+    }
+
+    private sealed record ManagedAssemblyInfo(
+        string Path,
+        string Name,
+        Version Version,
+        AssemblyNameReference[] References);
 
     private static void WaitForUserInput()
     {
