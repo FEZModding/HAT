@@ -33,13 +33,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="HAT.txt" LogicalName="HAT.txt" />
-    <EmbeddedResource Include="HAT.ico" LogicalName="HAT.ico" />
+    <EmbeddedResource Include="HAT.txt" LogicalName="HAT.txt">
+      <Visible>false</Visible>
+    </EmbeddedResource>
+    <EmbeddedResource Include="HAT.ico" LogicalName="HAT.ico">
+      <Visible>false</Visible>
+    </EmbeddedResource>
     <EmbeddedResource Include="$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net48)\build\.NETFramework\v4.8\*.dll">
       <LogicalName>FrameworkReferences/%(Filename)%(Extension)</LogicalName>
+      <Visible>false</Visible>
     </EmbeddedResource>
     <EmbeddedResource Include="$(PkgNETStandard_Library)\build\netstandard2.0\ref\netstandard.dll"
-                      LogicalName="FrameworkReferences/Facades/netstandard.dll" />
+                      LogicalName="FrameworkReferences/Facades/netstandard.dll">
+      <Visible>false</Visible>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -48,7 +55,15 @@
     </ProjectReference>
     <EmbeddedResource Include="..\Plugin\bin\$(Configuration)\HAT.zip"
                       LogicalName="HAT.zip"
-                      Condition="Exists('..\Plugin\bin\$(Configuration)\HAT.zip')" />
+                      Condition="Exists('..\Plugin\bin\$(Configuration)\HAT.zip')">
+      <Visible>false</Visible>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="NETRuntime.targets;ZIPHat.targets">
+      <Visible>false</Visible>
+    </None>
   </ItemGroup>
 
   <Import Project="NETRuntime.targets" />

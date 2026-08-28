@@ -32,9 +32,13 @@
 
   <ItemGroup>
     <EmbeddedResource Include="$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)"
-                      LogicalName="HAT.AppHost" />
+                      LogicalName="HAT.AppHost">
+      <Visible>false</Visible>
+    </EmbeddedResource>
     <EmbeddedResource Include="$(HatRuntimeArchive)"
-                      LogicalName="HAT.Runtime" />
+                      LogicalName="HAT.Runtime">
+      <Visible>false</Visible>
+    </EmbeddedResource>
   </ItemGroup>
 
   <Target Name="BuildHatAppHost"

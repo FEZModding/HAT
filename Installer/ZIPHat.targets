@@ -11,7 +11,9 @@
            Condition="!Exists('$(HatZipPath)')"/>
 
     <ItemGroup>
-      <EmbeddedResource Include="$(HatZipPath)" LogicalName="HAT.zip"/>
+      <EmbeddedResource Include="$(HatZipPath)" LogicalName="HAT.zip">
+        <Visible>false</Visible>
+      </EmbeddedResource>
     </ItemGroup>
   </Target>
 
