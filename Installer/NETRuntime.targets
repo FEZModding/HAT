@@ -1,7 +1,7 @@
 <Project>
 
   <PropertyGroup>
-    <HatAppHostProject>$(MSBuildThisFileDirectory)..\Launcher\FEZ.HAT.Launcher.csproj</HatAppHostProject>
+    <HatAppHostProject>$(MSBuildThisFileDirectory)..\AppHost\FEZ.HAT.AppHost.csproj</HatAppHostProject>
     <HatAppHostArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-apphosts</HatAppHostArtifacts>
     <HatRuntimeArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-runtimes</HatRuntimeArtifacts>
     <HatRuntimeVersion>10.0.11</HatRuntimeVersion>
@@ -40,7 +40,7 @@
   <Target Name="BuildHatAppHost"
           BeforeTargets="PrepareForBuild"
           Condition="'$(DesignTimeBuild)' != 'true'"
-          Inputs="$(HatAppHostProject);$(MSBuildThisFileDirectory)..\Launcher\Program.cs;$(MSBuildThisFileDirectory)HAT.ico"
+          Inputs="$(HatAppHostProject);$(MSBuildThisFileDirectory)..\AppHost\Program.cs;$(MSBuildThisFileDirectory)HAT.ico"
           Outputs="$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)">
     <Error Condition="'$(HatAppHostRid)' == ''"
            Text="The installer runtime '$(RuntimeIdentifier)' does not have a supported HAT apphost." />

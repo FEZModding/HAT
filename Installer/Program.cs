@@ -560,8 +560,7 @@ public static class Program
 
         foreach (var obsoleteName in new[]
                  {
-                     "HAT.Launcher", "HAT.Launcher.exe", "HAT.sh",
-                     "HAT.bin.x86", "HAT.bin.x86_64", "HAT.bin.osx"
+                     "HAT.sh", "HAT.bin.x86", "HAT.bin.x86_64", "HAT.bin.osx"
                  })
         {
             var obsoletePath = Path.Combine(basePath, obsoleteName);

@@ -51,7 +51,7 @@
                       Condition="Exists('..\Plugin\bin\$(Configuration)\HAT.zip')" />
   </ItemGroup>
 
-  <Import Project="HATLauncher.targets" />
+  <Import Project="NETRuntime.targets" />
   <Import Project="ZIPHat.targets" />
 
 </Project>
