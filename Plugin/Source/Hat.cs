@@ -227,6 +227,7 @@ namespace HatModLoader.Source
 
         public static void RegisterRequiredDependencyResolvers()
         {
+            AssemblyResolverRegistry.Register(new LoadedAssemblyResolver());
             AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("MonoMod"));
             AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("FEZRepacker.Core"));
         }
