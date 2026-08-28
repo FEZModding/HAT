@@ -691,6 +691,16 @@ public static class Program
             StringComparer.OrdinalIgnoreCase);
         var manifestPath = Path.ChangeExtension(managedAssemblyPath, ".deps.json");
 
+        // The .NET host preserves nested app-local paths only for RID-specific runtime assets.
+        var appHostRuntimeIdentifier = "";
+        if (OperatingSystem.IsWindows()) appHostRuntimeIdentifier = "win-x86";
+        if (OperatingSystem.IsLinux()) appHostRuntimeIdentifier = "linux-x64";
+        if (OperatingSystem.IsMacOS()) appHostRuntimeIdentifier = "osx-x64";
+        if (string.IsNullOrEmpty(appHostRuntimeIdentifier))
+        {
+            throw new PlatformNotSupportedException("The HAT app host does not support this operating system.");
+        }
+
         using var stream = File.Create(manifestPath);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
 
@@ -707,14 +717,30 @@ public static class Program
         foreach (var assembly in assemblies.Values)
         {
             writer.WriteStartObject($"{assembly.Name}/{assembly.Version}");
-            writer.WriteStartObject("runtime");
             var relativeAssemblyPath = Path.GetRelativePath(
                     Path.GetDirectoryName(managedAssemblyPath)!,
                     assembly.Path)
                 .Replace(Path.DirectorySeparatorChar, '/');
-            writer.WriteStartObject(relativeAssemblyPath);
-            writer.WriteEndObject();
-            writer.WriteEndObject();
+
+            if (Path.GetFullPath(assembly.Path).Equals(
+                    Path.GetFullPath(managedAssemblyPath),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                writer.WriteStartObject("runtime");
+                writer.WriteStartObject(relativeAssemblyPath);
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
+            else
+            {
+                // RID-specific assets retain their subdirectory during app-local probing.
+                writer.WriteStartObject("runtimeTargets");
+                writer.WriteStartObject(relativeAssemblyPath);
+                writer.WriteString("rid", appHostRuntimeIdentifier);
+                writer.WriteString("assetType", "runtime");
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
 
             var localDependencies = assembly.References
                 .Where(reference => assembliesByName.ContainsKey(reference.Name))
