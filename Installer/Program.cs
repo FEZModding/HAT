@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -262,6 +262,14 @@ public static class Program
         {
             SymbolWriterProvider = new PortablePdbWriterProvider(),
             WriteSymbols = true
+        };
+        modder.MissingDependencyResolver += (m, main, name, fullName) => {
+            // Ignore the problematic legacy frameworks that MonoMod is tripping over
+            if (name.Name == "System.Security.Permissions" || name.Name == "System.Transactions") {
+                return null;
+            }
+            // Fallback to the default behavior for everything else
+            return MonoModder.DefaultMissingDependencyResolver(m, main, name, fullName);
         };
 
         modder.Read();
