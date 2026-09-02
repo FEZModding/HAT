@@ -44,6 +44,12 @@
 
     <Move SourceFiles="@(MonoModDependencies)" DestinationFolder="$(TargetDir)HATDependencies/MonoMod"/>
     <Move SourceFiles="@(RepackerDependencies)" DestinationFolder="$(TargetDir)HATDependencies/FEZRepacker.Core"/>
+    <Copy
+      SourceFiles="$(PkgSystem_Security_Permissions)\lib\net10.0\System.Security.Permissions.dll"
+      DestinationFolder="$(TargetDir)HATDependencies/FEZRepacker.Core" />
+    <Copy
+      SourceFiles="$(NuGetPackageRoot)system.windows.extensions\10.0.11\lib\net10.0\System.Windows.Extensions.dll"
+      DestinationFolder="$(TargetDir)HATDependencies/FEZRepacker.Core" />
   </Target>
 
   <Target Name="BundleHatMod" AfterTargets="BuildHookBinaries">
@@ -83,6 +89,8 @@
     <PackageReference Include="MonoMod" Version="22.7.31.1" />
     <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.6" />
     <PackageReference Include="MonoMod.Utils" Version="25.0.14" />
+    <PackageReference Include="System.Security.Permissions" Version="10.0.11" GeneratePathProperty="true" />
+    <PackageDownload Include="System.Windows.Extensions" Version="[10.0.11]" />
   </ItemGroup>
 
   <ItemGroup>
