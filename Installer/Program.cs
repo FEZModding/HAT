@@ -279,9 +279,14 @@ public static class Program
                     WriteSymbols = true
                 };
 
+                var hatModPath = Path.Combine(basePath, "FEZ.HAT.mm.dll");
+                var hooksModPath = Path.Combine(basePath, "FEZ.Hooks.mm.dll");
+                StripCompilerNullabilityMetadata(hatModPath);
+                StripCompilerNullabilityMetadata(hooksModPath);
+
                 modder.Read();
-                modder.ReadMod(Path.Combine(basePath, "FEZ.HAT.mm.dll"));
-                modder.ReadMod(Path.Combine(basePath, "FEZ.Hooks.mm.dll"));
+                modder.ReadMod(hatModPath);
+                modder.ReadMod(hooksModPath);
                 PrioritizeFrameworkDependencyDirectories(modder, referencePath);
                 modder.MapDependencies();
                 modder.AutoPatch();
@@ -304,6 +309,130 @@ public static class Program
                 // Do not mask the patching result or its original error with cleanup failure.
             }
         }
+    }
+
+    private static void StripCompilerNullabilityMetadata(string assemblyPath)
+    {
+        var temporaryPath = assemblyPath + ".nullable-stripped";
+        try
+        {
+            using (var module = ModuleDefinition.ReadModule(assemblyPath, new ReaderParameters
+                   {
+                       ReadingMode = ReadingMode.Immediate,
+                       ReadSymbols = false
+                   }))
+            {
+                StripNullabilityAttributes(module);
+                StripNullabilityAttributes(module.Assembly);
+
+                foreach (var type in module.Types.ToArray())
+                {
+                    StripNullabilityMetadata(type);
+                }
+
+                foreach (var type in module.Types
+                             .Where(IsCompilerNullabilityAttribute)
+                             .ToArray())
+                {
+                    module.Types.Remove(type);
+                }
+
+                module.Write(temporaryPath, new WriterParameters { WriteSymbols = false });
+            }
+
+            File.Move(temporaryPath, assemblyPath, overwrite: true);
+
+            // The assembly was rewritten without symbols. Leaving its original portable PDB
+            // beside it can make Cecil try to consume mismatched debug metadata.
+            var pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
+            if (File.Exists(pdbPath))
+            {
+                File.Delete(pdbPath);
+            }
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+    }
+
+    private static void StripNullabilityMetadata(TypeDefinition type)
+    {
+        StripNullabilityAttributes(type);
+
+        foreach (var genericParameter in type.GenericParameters)
+        {
+            StripNullabilityAttributes(genericParameter);
+            foreach (var constraint in genericParameter.Constraints)
+            {
+                StripNullabilityAttributes(constraint);
+            }
+        }
+
+        foreach (var interfaceImplementation in type.Interfaces)
+        {
+            StripNullabilityAttributes(interfaceImplementation);
+        }
+
+        foreach (var field in type.Fields)
+        {
+            StripNullabilityAttributes(field);
+        }
+
+        foreach (var property in type.Properties)
+        {
+            StripNullabilityAttributes(property);
+        }
+
+        foreach (var @event in type.Events)
+        {
+            StripNullabilityAttributes(@event);
+        }
+
+        foreach (var method in type.Methods)
+        {
+            StripNullabilityAttributes(method);
+            StripNullabilityAttributes(method.MethodReturnType);
+
+            foreach (var parameter in method.Parameters)
+            {
+                StripNullabilityAttributes(parameter);
+            }
+
+            foreach (var genericParameter in method.GenericParameters)
+            {
+                StripNullabilityAttributes(genericParameter);
+                foreach (var constraint in genericParameter.Constraints)
+                {
+                    StripNullabilityAttributes(constraint);
+                }
+            }
+        }
+
+        foreach (var nestedType in type.NestedTypes)
+        {
+            StripNullabilityMetadata(nestedType);
+        }
+    }
+
+    private static void StripNullabilityAttributes(Mono.Cecil.ICustomAttributeProvider provider)
+    {
+        for (var i = provider.CustomAttributes.Count - 1; i >= 0; i--)
+        {
+            if (IsCompilerNullabilityAttribute(provider.CustomAttributes[i].AttributeType))
+            {
+                provider.CustomAttributes.RemoveAt(i);
+            }
+        }
+    }
+
+    private static bool IsCompilerNullabilityAttribute(TypeReference type)
+    {
+        return type.Namespace == "System.Runtime.CompilerServices" &&
+               type.Name is "NullableAttribute" or "NullableContextAttribute" or "NullablePublicOnlyAttribute";
     }
 
     private static void RemoveConsumedPatchInputs(string basePath)

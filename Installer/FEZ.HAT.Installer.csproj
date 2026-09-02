@@ -52,6 +52,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Plugin\FEZ.HAT.mm.csproj">
       <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <RestoreReference>false</RestoreReference>
     </ProjectReference>
     <EmbeddedResource Include="..\Plugin\bin\$(Configuration)\HAT.zip"
                       LogicalName="HAT.zip"

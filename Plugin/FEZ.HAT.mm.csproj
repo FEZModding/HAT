@@ -81,10 +81,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="MonoMod" Version="22.7.31.1" />
-    <PackageReference Include="MonoMod.RuntimeDetour" Version="22.7.31.1" />
-    <PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.7.31.1" GeneratePathProperty="true">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+    <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.6" />
+    <PackageReference Include="MonoMod.Utils" Version="25.0.14" />
   </ItemGroup>
 
   <ItemGroup>

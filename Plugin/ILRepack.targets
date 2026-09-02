@@ -5,6 +5,16 @@
 
     <MakeDir Directories="$(TargetDir)"/>
 
+    <PropertyGroup>
+      <HookGenToolDir>$(ProjectDir)..\BuildTools\HookGenTool\bin\$(Configuration)\</HookGenToolDir>
+    </PropertyGroup>
+
+    <MSBuild
+      Projects="$(ProjectDir)..\BuildTools\HookGenTool\HookGenTool.csproj"
+      Targets="Restore;Build"
+      Properties="Configuration=$(Configuration)"
+      BuildInParallel="false" />
+
     <ItemGroup>
       <HookBinaries Include="FEZ.exe" />
       <HookBinaries Include="FezEngine.dll" />
@@ -12,13 +22,13 @@
     </ItemGroup>
     
     <Exec 
-      Command='"$(TargetDir)\HATDependencies\MonoMod\MonoMod.RuntimeDetour.HookGen.exe" "$(ProjectDir)\Dependencies\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' 
-      WorkingDirectory="$(TargetDir)\HATDependencies\MonoMod"
+      Command='"$(HookGenToolDir)MonoMod.RuntimeDetour.HookGen.exe" "$(ProjectDir)\Dependencies\%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' 
+      WorkingDirectory="$(HookGenToolDir)"
       Condition="'$(OS)' == 'Windows_NT'" />
 
     <Exec 
-      Command='mono "$(TargetDir)/HATDependencies/MonoMod/MonoMod.RuntimeDetour.HookGen.exe" "$(ProjectDir)/Dependencies/%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' 
-      WorkingDirectory="$(TargetDir)/HATDependencies/MonoMod"
+      Command='mono "$(HookGenToolDir)MonoMod.RuntimeDetour.HookGen.exe" "$(ProjectDir)/Dependencies/%(HookBinaries.Identity)" "$(TargetDir)MMHOOK_%(HookBinaries.Identity)"' 
+      WorkingDirectory="$(HookGenToolDir)"
       Condition="'$(OS)' != 'Windows_NT'" />
 
     <ItemGroup>
