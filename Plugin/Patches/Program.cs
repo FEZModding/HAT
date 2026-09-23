@@ -25,7 +25,11 @@ namespace FezGame
             // However, occasionally, error can occur during HAT initialisation, or when the
             // game is shutting down. We want to keep track of it.
 
-            Logger.Try(orig_Main, args);
+            // Use the game's own option to disable its sometimes buggy multithreaded mode on every launch.
+            var gameArgs = new string[args.Length + 1];
+            Array.Copy(args, gameArgs, args.Length);
+            gameArgs[^1] = "--singlethreaded";
+            Logger.Try(orig_Main, gameArgs);
         }
     }
 }
