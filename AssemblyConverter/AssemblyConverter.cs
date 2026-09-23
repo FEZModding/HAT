@@ -27,9 +27,13 @@ public static class AssemblyConverter
         "netstandard"
     ];
 
-    public static IReadOnlyList<FileInfo> Convert(DirectoryInfo output, params FileInfo[] sources)
+    public static IReadOnlyList<FileInfo> Convert(
+        DirectoryInfo output,
+        DirectoryInfo resolver,
+        params FileInfo[] sources)
     {
         ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(resolver);
         ValidateInputs(sources);
 
         output.Create();
@@ -37,7 +41,7 @@ public static class AssemblyConverter
             .Select(file => Path.GetFileNameWithoutExtension(file.Name))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var resolver = BuildAssemblyResolver(sources);
+        var assemblyResolver = BuildAssemblyResolver(resolver, sources);
         var converted = new List<FileInfo>(sources.Length);
 
         foreach (var source in sources)
@@ -47,7 +51,7 @@ public static class AssemblyConverter
 
             using var module = ModuleDefinition.ReadModule(source.FullName, new ReaderParameters
             {
-                AssemblyResolver = resolver,
+                AssemblyResolver = assemblyResolver,
                 ReadingMode = ReadingMode.Immediate,
                 ReadSymbols = false,
                 InMemory = true
@@ -92,9 +96,9 @@ public static class AssemblyConverter
         }
     }
 
-    private static DefaultAssemblyResolver BuildAssemblyResolver(FileInfo[] assemblies)
+    private static DefaultAssemblyResolver BuildAssemblyResolver(DirectoryInfo resolver, FileInfo[] assemblies)
     {
-        var resolver = new DefaultAssemblyResolver();
+        var assemblyResolver = new DefaultAssemblyResolver();
         var seenDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var assembly in assemblies)
@@ -102,14 +106,15 @@ public static class AssemblyConverter
             AddDirectory(assembly.DirectoryName);
         }
 
+        AddDirectory(resolver.FullName);
         AddDirectory(RuntimeEnvironment.GetRuntimeDirectory());
-        return resolver;
+        return assemblyResolver;
 
         void AddDirectory(string? path)
         {
             if (!string.IsNullOrWhiteSpace(path) && seenDirectories.Add(path))
             {
-                resolver.AddSearchDirectory(path);
+                assemblyResolver.AddSearchDirectory(path);
             }
         }
     }

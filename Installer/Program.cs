@@ -370,14 +370,31 @@ public static class Program
         var fezDir = new DirectoryInfo(Path.GetDirectoryName(fezPath)!);
         Console.WriteLine("[HAT] Converting game assemblies to CoreCLR");
 
-        var converted = AssemblyConverter.AssemblyConverter.Convert(fezDir, gameAssemblies);
+        var resolverDir = new DirectoryInfo(GetExtractedRuntimeDirectory(fezDir.FullName));
+        var converted = AssemblyConverter.AssemblyConverter.Convert(fezDir, resolverDir, gameAssemblies);
         return converted[0].FullName;
+    }
+
+    private static string GetExtractedRuntimeDirectory(string gameDir)
+    {
+        var sharedRuntimeDir = Path.Combine(gameDir, "HATDependencies", "Runtime", "shared", "Microsoft.NETCore.App");
+        var runtimeDirectories = Directory.Exists(sharedRuntimeDir)
+            ? Directory.GetDirectories(sharedRuntimeDir)
+            : [];
+        
+        if (runtimeDirectories.Length != 1 || !File.Exists(Path.Combine(runtimeDirectories[0], "mscorlib.dll")))
+        {
+            throw new InvalidOperationException($"Expected one extracted .NET runtime with mscorlib.dll in {sharedRuntimeDir}.");
+        }
+
+        return runtimeDirectories[0];
     }
 
     private static void GenerateHooks(string hatPath)
     {
         var gameDir = Path.GetDirectoryName(hatPath)!;
         var monoModDir = Path.Combine(gameDir, "HATDependencies", "MonoMod");
+        var runtimeDir = GetExtractedRuntimeDirectory(gameDir);
         Console.WriteLine("[HAT] Generating MonoMod hooks");
 
         var gameAssembliesToPatch = new[]
@@ -397,6 +414,7 @@ public static class Program
                 MissingDependencyThrow = false
             };
             modder.DependencyDirs.Add(monoModDir);
+            modder.DependencyDirs.Add(runtimeDir);
             modder.Read();
             modder.MapDependencies();
 
@@ -427,6 +445,7 @@ public static class Program
 
         modder.DependencyDirs.Add(Path.Combine(gameDir, "HATDependencies", "MonoMod"));
         modder.DependencyDirs.Add(Path.Combine(gameDir, "HATDependencies", "FEZRepacker.Core"));
+        modder.DependencyDirs.Add(GetExtractedRuntimeDirectory(gameDir));
         modder.Read();
         modder.ReadMod(Path.Combine(gameDir, "FEZ.HAT.mm.dll"));
         modder.MapDependencies();
