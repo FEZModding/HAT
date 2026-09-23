@@ -6,9 +6,8 @@
     <PropertyGroup>
       <HatZipPath>..\Plugin\bin\$(Configuration)\HAT.zip</HatZipPath>
     </PropertyGroup>
-    
-    <Error Text="HAT.zip not found at $(HatZipPath)"
-           Condition="!Exists('$(HatZipPath)')"/>
+
+    <Error Text="HAT.zip not found at $(HatZipPath)" Condition="!Exists('$(HatZipPath)')"/>
 
     <ItemGroup>
       <EmbeddedResource Include="$(HatZipPath)" LogicalName="HAT.zip"/>

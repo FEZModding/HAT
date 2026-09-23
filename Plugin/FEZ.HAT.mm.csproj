@@ -38,7 +38,7 @@
     <Move SourceFiles="@(RepackerDependencies)" DestinationFolder="$(TargetDir)HATDependencies/FEZRepacker.Core"/>
   </Target>
 
-  <Target Name="BundleHatMod" AfterTargets="BuildHookBinaries">
+  <Target Name="BundleHatMod" AfterTargets="RearrangeDependencies">
     <PropertyGroup>
       <HatStagingDir>$(TargetDir)HAT.staging\</HatStagingDir>
       <HatZipPath>$(TargetDir)HAT.zip</HatZipPath>
