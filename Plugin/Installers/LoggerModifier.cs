@@ -13,21 +13,32 @@ namespace HatModLoader.Installers
         
         private static readonly int MaximumLogDays = 30;
 
-        public static Hook LogDetour;
+        private static Hook _logDetour;
+        
+        private static bool _showRuntimeErrors;
+
+        public static void InstallConsoleLogging()
+        {
+            _logDetour = new Hook(
+                typeof(Logger).GetMethod("Log", new[] { typeof(string), typeof(LogSeverity), typeof(string) })!,
+                new Action<Action<string, LogSeverity, string>, string, LogSeverity, string>((orig, component, severity, message) => {
+                    orig(component, severity, message);
+                    Console.WriteLine("({0:HH:mm:ss.fff}) [{1}] {2} : {3}", DateTime.Now, component, severity.ToString().ToUpperInvariant(), message);
+                    if (_showRuntimeErrors)
+                    {
+                        LogCrashHandler(component, severity, message);
+                    }
+                })
+            );
+        }
 
         public void Install(Hat hat)
         {
-            LogDetour = new Hook(
-                typeof(Logger).GetMethod("Log", new Type[] { typeof(string), typeof(LogSeverity), typeof(string) }),
-                new Action<Action<string, LogSeverity, string>, string, LogSeverity, string>((orig, component, severity, message) => {
-                    orig(component, severity, message);
-                    LogCrashHandler(component, severity, message);
-                })
-            );
-
+            InstallConsoleLogging();
             SetCustomLoggerPath();
             MoveOriginalLogsToCustomLoggerPath();
             RemoveFilesOlderThanDays(MaximumLogDays);
+            _showRuntimeErrors = true;
         }
 
         private static string GetTimestampedLogFileName(DateTime date, int index = 0)
@@ -91,7 +102,9 @@ namespace HatModLoader.Installers
 
         public void Uninstall()
         {
-            LogDetour.Dispose();
+            _showRuntimeErrors = false;
+            _logDetour?.Dispose();
+            _logDetour = null;
         }
     }
 }
