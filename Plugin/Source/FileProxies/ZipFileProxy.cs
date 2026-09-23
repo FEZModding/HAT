@@ -1,34 +1,36 @@
+using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace HatModLoader.Source.FileProxies
 {
     public class ZipFileProxy : IFileProxy
     {
-        private ZipReader _archive;
-        private readonly string _zipPath;
-        private DateTime _zipLastModified;
+        private ZipArchive _archive;
+        private DateTime _fileLastModified;
         private readonly Dictionary<IntPtr, string> _tempFiles = new();
 
-        public string RootPath => _zipPath;
-        public string ContainerName => Path.GetFileName(_zipPath);
+        public string RootPath { get; }
 
-        public ZipFileProxy(string zipPath)
+        public string ContainerName => Path.GetFileName(RootPath);
+
+        private ZipFileProxy(string zipPath)
         {
-            _zipPath = zipPath;
+            RootPath = zipPath;
             Reopen();
         }
 
         private void Reopen()
         {
             _archive?.Dispose();
-            _zipLastModified = File.GetLastWriteTimeUtc(_zipPath);
-            _archive = new ZipReader(_zipPath);
+            _archive = ZipFile.OpenRead(RootPath);
+            _fileLastModified = File.GetLastWriteTimeUtc(RootPath);
         }
 
         public void Refresh()
         {
-            var modified = File.GetLastWriteTimeUtc(_zipPath);
-            if (modified > _zipLastModified)
+            var modified = File.GetLastWriteTimeUtc(RootPath);
+            if (modified > _fileLastModified)
             {
                 Reopen();
             }
@@ -36,23 +38,23 @@ namespace HatModLoader.Source.FileProxies
 
         public IEnumerable<string> EnumerateFiles(string localPath)
         {
-            if (!localPath.EndsWith("/")) localPath += "/";
+            if (localPath.Length > 0 && !localPath.EndsWith('/')) localPath += "/";
 
             return _archive.Entries
-                .Where(e => !e.IsDirectory && e.Name.StartsWith(localPath))
-                .Select(e => e.Name);
+                .Where(e => e.Name.Length > 0 && e.FullName.StartsWith(localPath))
+                .Select(e => e.FullName);
         }
 
         public bool FileExists(string localPath)
         {
-            return _archive.Entries.Any(e => !e.IsDirectory && e.Name == localPath);
+            return _archive.Entries.Any(e => e.Name.Length > 0 && e.FullName == localPath);
         }
 
         public Stream OpenFile(string localPath)
         {
             var entry = GetEntry(localPath);
             var ms = new MemoryStream();
-            using var s = _archive.OpenEntry(entry);
+            using var s = entry.Open();
             s.CopyTo(ms);
             ms.Position = 0;
             return ms;
@@ -60,22 +62,22 @@ namespace HatModLoader.Source.FileProxies
 
         public DateTime GetLastModified(string localPath)
         {
-            return GetEntry(localPath).LastModified.ToUniversalTime();
+            return GetEntry(localPath).LastWriteTime.UtcDateTime;
         }
 
-        private ZipReader.Entry GetEntry(string localPath)
+        private ZipArchiveEntry GetEntry(string localPath)
         {
-            return _archive.Entries.FirstOrDefault(e => !e.IsDirectory && e.Name == localPath);
+            return _archive.Entries.FirstOrDefault(e => e.Name.Length > 0 && e.FullName == localPath);
         }
 
         public IntPtr LoadLibrary(string localPath)
         {
             var tempFile = Path.GetTempFileName();
             using (var fs = File.Create(tempFile))
-            using (var s = _archive.OpenEntry(GetEntry(localPath)))
+            using (var s = GetEntry(localPath).Open())
                 s.CopyTo(fs);
 
-            var handle = NativeLibraryInterop.Load(tempFile);
+            var handle = NativeLibrary.Load(tempFile);
             if (handle != IntPtr.Zero)
             {
                 _tempFiles.Add(handle, tempFile);
@@ -88,7 +90,7 @@ namespace HatModLoader.Source.FileProxies
         {
             if (_tempFiles.TryGetValue(handle, out var tempFile))
             {
-                NativeLibraryInterop.Free(handle);
+                NativeLibrary.Free(handle);
                 File.Delete(tempFile);
                 _tempFiles.Remove(handle);
             }
@@ -102,7 +104,7 @@ namespace HatModLoader.Source.FileProxies
             try
             {
                 using (var fs = File.Create(tempFile))
-                using (var s = _archive.OpenEntry(GetEntry(localPath)))
+                using (var s = GetEntry(localPath).Open())
                     s.CopyTo(fs);
                 AssemblyName.GetAssemblyName(tempFile);
             }
