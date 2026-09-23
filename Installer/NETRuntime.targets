@@ -1,0 +1,77 @@
+﻿<Project>
+
+  <PropertyGroup>
+    <HatAppHostProject>$(MSBuildThisFileDirectory)..\AppHost\FEZ.HAT.AppHost.csproj</HatAppHostProject>
+    <HatAppHostArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-apphosts</HatAppHostArtifacts>
+    <HatRuntimeArtifacts>$(MSBuildThisFileDirectory)..\artifacts\hat-runtimes</HatRuntimeArtifacts>
+    <HatRuntimeVersion>10.0.12</HatRuntimeVersion>
+    <HatInstallerRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</HatInstallerRid>
+    <HatInstallerRid Condition="'$(HatInstallerRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</HatInstallerRid>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(HatInstallerRid)').StartsWith('win-'))">
+    <HatAppHostRid>win-x86</HatAppHostRid>
+    <HatAppHostFile>HAT.exe</HatAppHostFile>
+    <HatRuntimeArchiveFile>dotnet-runtime-$(HatRuntimeVersion)-win-x86.zip</HatRuntimeArchiveFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(HatInstallerRid)').StartsWith('linux-'))">
+    <HatAppHostRid>linux-x64</HatAppHostRid>
+    <HatAppHostFile>HAT</HatAppHostFile>
+    <HatRuntimeArchiveFile>dotnet-runtime-$(HatRuntimeVersion)-linux-x64.tar.gz</HatRuntimeArchiveFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(HatInstallerRid)').StartsWith('osx-'))">
+    <HatAppHostRid>osx-x64</HatAppHostRid>
+    <HatAppHostFile>HAT</HatAppHostFile>
+    <HatRuntimeArchiveFile>dotnet-runtime-$(HatRuntimeVersion)-osx-x64.tar.gz</HatRuntimeArchiveFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <HatRuntimeArchive>$(HatRuntimeArtifacts)\$(HatRuntimeArchiveFile)</HatRuntimeArchive>
+    <HatRuntimeUrl>https://builds.dotnet.microsoft.com/dotnet/Runtime/$(HatRuntimeVersion)/$(HatRuntimeArchiveFile)</HatRuntimeUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)"
+                      LogicalName="HAT.AppHost">
+      <Visible>false</Visible>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(HatRuntimeArchive)"
+                      LogicalName="HAT.Runtime">
+      <Visible>false</Visible>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Target Name="BuildHatAppHost"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'"
+          Inputs="$(HatAppHostProject);$(MSBuildThisFileDirectory)..\AppHost\Program.cs;$(MSBuildThisFileDirectory)HAT.ico"
+          Outputs="$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)">
+    <Error Condition="'$(HatAppHostRid)' == ''"
+           Text="The installer runtime '$(RuntimeIdentifier)' does not have a supported HAT apphost." />
+    <Exec Command="dotnet publish &quot;$(HatAppHostProject)&quot; -c Release -r $(HatAppHostRid) --self-contained false -o &quot;$(HatAppHostArtifacts)\$(HatAppHostRid)&quot; --artifacts-path &quot;$(HatAppHostArtifacts)\build\$(HatAppHostRid)&quot; --nologo -v:minimal" />
+  </Target>
+
+  <Target Name="DownloadHatRuntime"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and !Exists('$(HatRuntimeArchive)')">
+    <MakeDir Directories="$(HatRuntimeArtifacts)" />
+    <Message Text="Downloading private .NET $(HatRuntimeVersion) runtime for $(HatAppHostRid)" Importance="high" />
+    <DownloadFile SourceUrl="$(HatRuntimeUrl)"
+                  DestinationFolder="$(HatRuntimeArtifacts)"
+                  DestinationFileName="$(HatRuntimeArchiveFile)"
+                  SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="ValidateHatRuntimePayloads"
+          BeforeTargets="PrepareResources"
+          DependsOnTargets="BuildHatAppHost;DownloadHatRuntime"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('$(HatAppHostArtifacts)\$(HatAppHostRid)\$(HatAppHostFile)')"
+           Text="The $(HatAppHostRid) HAT apphost payload is missing." />
+    <Error Condition="!Exists('$(HatRuntimeArchive)')"
+           Text="The .NET $(HatRuntimeVersion) runtime payload for $(HatAppHostRid) is missing." />
+  </Target>
+
+</Project>

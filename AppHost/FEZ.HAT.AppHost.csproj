@@ -5,6 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>HAT</AssemblyName>
     <UseAppHost>true</UseAppHost>
+    <ApplicationIcon>HAT.ico</ApplicationIcon>
     <AppHostDotNetSearch>AppRelative</AppHostDotNetSearch>
     <AppHostRelativeDotNet>HATDependencies/Runtime</AppHostRelativeDotNet>
   </PropertyGroup>
