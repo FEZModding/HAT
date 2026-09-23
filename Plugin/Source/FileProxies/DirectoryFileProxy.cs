@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace HatModLoader.Source.FileProxies
 {
@@ -48,12 +49,12 @@ namespace HatModLoader.Source.FileProxies
 
         public IntPtr LoadLibrary(string localPath)
         {
-            return NativeLibraryInterop.Load(Path.Combine(modDirectory, localPath));
+            return NativeLibrary.Load(Path.Combine(modDirectory, localPath));
         }
 
         public void UnloadLibrary(IntPtr handle)
         {
-            NativeLibraryInterop.Free(handle);
+            NativeLibrary.Free(handle);
         }
 
         public bool IsDotNetAssembly(string localPath)
