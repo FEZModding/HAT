@@ -371,7 +371,18 @@ public static class Program
         Console.WriteLine("[HAT] Converting game assemblies to CoreCLR");
 
         var resolverDir = new DirectoryInfo(GetExtractedRuntimeDirectory(fezDir.FullName));
-        var converted = AssemblyConverter.AssemblyConverter.Convert(fezDir, resolverDir, gameAssemblies);
+        var resolverInputs = new List<FileInfo>();
+
+        var steamworksPath = Path.Combine(gameDir, "Steamworks.NET.dll");
+        if (File.Exists(steamworksPath))
+        {
+            Console.WriteLine("[HAT] Creating inert Steamworks.NET assembly");
+            var steamworksStub =
+                AssemblyConverter.AssemblyStubber.Stub(new FileInfo(steamworksPath), fezDir, resolverDir);
+            resolverInputs.Add(steamworksStub);
+        }
+
+        var converted = AssemblyConverter.AssemblyConverter.Convert(fezDir, resolverDir, resolverInputs, gameAssemblies);
         return converted[0].FullName;
     }
 
