@@ -30,18 +30,36 @@ public static class AssemblyConverter
     public static IReadOnlyList<FileInfo> Convert(
         DirectoryInfo output,
         DirectoryInfo resolver,
+        IReadOnlyList<FileInfo> resolverInputs,
         params FileInfo[] sources)
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(resolver);
+        ArgumentNullException.ThrowIfNull(resolverInputs);
         ValidateInputs(sources);
+
+        foreach (var input in resolverInputs)
+        {
+            if (!input.Exists)
+            {
+                throw new ConversionException($"Resolver input does not exist: {input.FullName}");
+            }
+        }
 
         output.Create();
         var rootNames = sources
             .Select(file => Path.GetFileNameWithoutExtension(file.Name))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var assemblyResolver = BuildAssemblyResolver(resolver, sources);
+        foreach (var input in resolverInputs)
+        {
+            if (!rootNames.Add(Path.GetFileNameWithoutExtension(input.Name)))
+            {
+                throw new ConversionException($"Resolver input duplicates a conversion root: {input.Name}");
+            }
+        }
+
+        var assemblyResolver = BuildAssemblyResolver(resolver, [.. sources, .. resolverInputs]);
         var converted = new List<FileInfo>(sources.Length);
 
         foreach (var source in sources)
@@ -96,7 +114,7 @@ public static class AssemblyConverter
         }
     }
 
-    private static DefaultAssemblyResolver BuildAssemblyResolver(DirectoryInfo resolver, FileInfo[] assemblies)
+    internal static DefaultAssemblyResolver BuildAssemblyResolver(DirectoryInfo resolver, FileInfo[] assemblies)
     {
         var assemblyResolver = new DefaultAssemblyResolver();
         var seenDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -136,7 +154,7 @@ public static class AssemblyConverter
         }
     }
 
-    private static void RetargetFramework(ModuleDefinition module)
+    internal static void RetargetFramework(ModuleDefinition module)
     {
         // .NET resolves the other legacy framework references through compatibility assemblies and type forwarders.
         // This clears their original version and identity metadata so they do not retain the source assembly's requirements.
@@ -152,7 +170,7 @@ public static class AssemblyConverter
         }
     }
 
-    private static void RemoveCodeAccessSecurity(ModuleDefinition module)
+    internal static void RemoveCodeAccessSecurity(ModuleDefinition module)
     {
         module.Assembly.SecurityDeclarations.Clear();
 
