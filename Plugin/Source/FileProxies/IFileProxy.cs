@@ -9,8 +9,5 @@
         public Stream OpenFile(string localPath);
         public DateTime GetLastModified(string localPath);
         public void Refresh();
-        public IntPtr LoadLibrary(string localPath);
-        public void UnloadLibrary(IntPtr handle);
-        public bool IsDotNetAssembly(string localPath);
     }
 }
