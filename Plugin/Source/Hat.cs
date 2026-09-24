@@ -55,16 +55,22 @@ namespace HatModLoader.Source
         {
             Logger.Log("HAT", $"HAT Mod Loader {Version}{Suffix}");
 
+            var hasMods = false;
             if (GetModProxies(out var proxies))
             {
                 if (GetModList(proxies, out var mods))
                 {
                     ResolveDependencies(mods);
                     LoadMods();
-                    Worlds = new WorldsManifest(Mods);
-                    InitializeAssemblies();
-                    return; // HAT initialized
+                    hasMods = true;
                 }
+            }
+
+            Worlds = new WorldsManifest(Mods);
+            if (hasMods)
+            {
+                InitializeAssemblies();
+                return; // HAT initialized
             }
 
             Logger.Log("HAT", LogSeverity.Warning, "Skip the initialization process...");
