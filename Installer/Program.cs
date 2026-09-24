@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Serialization;
 using Microsoft.Win32;
 using MonoMod;
 using MonoMod.RuntimeDetour.HookGen;
@@ -382,7 +383,8 @@ public static class Program
             resolverInputs.Add(steamworksStub);
         }
 
-        var converted = AssemblyConverter.AssemblyConverter.Convert(fezDir, resolverDir, resolverInputs, gameAssemblies);
+        var converted =
+            AssemblyConverter.AssemblyConverter.Convert(fezDir, resolverDir, resolverInputs, gameAssemblies);
         return converted[0].FullName;
     }
 
@@ -392,10 +394,11 @@ public static class Program
         var runtimeDirectories = Directory.Exists(sharedRuntimeDir)
             ? Directory.GetDirectories(sharedRuntimeDir)
             : [];
-        
+
         if (runtimeDirectories.Length != 1 || !File.Exists(Path.Combine(runtimeDirectories[0], "mscorlib.dll")))
         {
-            throw new InvalidOperationException($"Expected one extracted .NET runtime with mscorlib.dll in {sharedRuntimeDir}.");
+            throw new InvalidOperationException(
+                $"Expected one extracted .NET runtime with mscorlib.dll in {sharedRuntimeDir}.");
         }
 
         return runtimeDirectories[0];
@@ -500,59 +503,42 @@ public static class Program
         var originalDir = Path.GetDirectoryName(originalFezPath)!;
         var hatDir = Path.GetDirectoryName(hatPath)!;
 
-        string sourceDir;
-        var fnaFiles = new List<string>
-        {
-            "gamecontrollerdb.txt"
-        };
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            sourceDir = originalDir;
-            fnaFiles.AddRange(
-                "SDL2.dll",
-                "SDL2_image.dll",
-                "soft_oal.dll",
-                "mojoshader.dll",
-                "libogg.dll",
-                "libvorbis.dll",
-                "libvorbisfile.dll"
-            );
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            sourceDir = Path.Combine(originalDir, "lib64");
-            fnaFiles.AddRange(
-                "libSDL2-2.0.so.0",
-                "libopenal.so.1",
-                "libmojoshader.so",
-                "libogg.so.0",
-                "libvorbis.so.0",
-                "libvorbisfile.so.3"
-            );
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            sourceDir = Path.Combine(originalDir, "osx");
-            fnaFiles.AddRange(
-                "libSDL2-2.0.0.dylib",
-                "libopenal.1.dylib",
-                "libmojoshader.dylib",
-                "libogg.0.dylib",
-                "libvorbis.0.dylib",
-                "libvorbisfile.3.dylib"
-            );
-        }
-        else
-        {
-            throw new PlatformNotSupportedException("Are you running this on FreeBSD or what?");
-        }
+        using var configResource = GetResource("FNA.dll.config");
+        var config = FnaDllConfig.Load(configResource, leaveOpen: true);
 
         Console.WriteLine("[HAT] Copying native libraries");
-        foreach (var library in fnaFiles)
+        File.Copy(Path.Combine(originalDir, "gamecontrollerdb.txt"),
+            Path.Combine(hatDir, "gamecontrollerdb.txt"), overwrite: true);
+
+        var copied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sourceDir = FnaDllConfigExtensions.GetOperatingSystem()
+            .GetLibrariesDirectory(originalDir);
+
+        foreach (var mapping in config.Dependencies)
         {
-            File.Copy(Path.Combine(sourceDir, library), Path.Combine(hatDir, library), overwrite: true);
+            var target = mapping.Target;
+            if (string.IsNullOrWhiteSpace(target) || Path.GetFileName(target) != target || !copied.Add(target))
+            {
+                throw new InstallerException($"Invalid or duplicate FNA native target: '{target}'.");
+            }
+
+            var source = Path.Combine(sourceDir, target);
+            if (!File.Exists(source))
+            {
+                if (mapping.Dll is "SDL2_image.dll" or "libtheoraplay.dll")
+                {
+                    continue;
+                }
+
+                throw new InstallerException($"Required FNA native library is missing: {source}");
+            }
+
+            File.Copy(source, Path.Combine(hatDir, target), overwrite: true);
         }
+
+        configResource.Seek(0, SeekOrigin.Begin);
+        using var configDestination = File.Create(Path.Combine(hatDir, "FNA.dll.config"));
+        configResource.CopyTo(configDestination);
     }
 
     private static void CopyContentsFolder(string originalFezPath, string hatPath)
