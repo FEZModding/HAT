@@ -1,7 +1,5 @@
 ﻿using System.Reflection;
 using Common;
-using FezEngine.Tools;
-using HatModLoader.Source.AssemblyResolving;
 using HatModLoader.Source.FileProxies;
 using Microsoft.Xna.Framework;
 
@@ -9,30 +7,25 @@ namespace HatModLoader.Source.ModDefinition
 {
     public class CodeMod
     {
-        public byte[] RawAssembly { get; }
+        public string LibraryName { get; }
 
         public Assembly Assembly { get; private set; }
 
         public List<GameComponent> Components { get; } = new();
 
-        private CodeMod(byte[] rawAssembly)
+        private CodeMod(string libraryName)
         {
-            RawAssembly = rawAssembly;
+            LibraryName = libraryName;
         }
 
-        public void Initialize(Game game, string entrypoint)
+        internal void Initialize(Game game, string entrypoint, ModAssemblyLoadContext context)
         {
-            if (RawAssembly == null || RawAssembly.Length < 1)
-            {
-                throw new ArgumentNullException(nameof(RawAssembly), "There's no raw assembly data.");
-            }
-
             if (Assembly != null)
             {
                 throw new InvalidOperationException("Assembly is already loaded.");
             }
             
-            Assembly = Assembly.Load(RawAssembly);
+            Assembly = context.LoadEntryAssembly();
             Components.Clear();
 
             Type[] types;
@@ -78,17 +71,7 @@ namespace HatModLoader.Source.ModDefinition
                 return false;
             }
 
-            using var assemblyStream = proxy.OpenFile(metadata.LibraryName);
-            var rawAssembly = new byte[assemblyStream.Length];
-            var count = assemblyStream.Read(rawAssembly, 0, rawAssembly.Length);
-
-            if (rawAssembly.Length != count)
-            {
-                codeMod = null;
-                return false;
-            }
-
-            codeMod = new CodeMod(rawAssembly);
+            codeMod = new CodeMod(metadata.LibraryName);
             return true;
         }
     }

@@ -54,6 +54,7 @@ namespace HatModLoader.Source
         public void Initialize()
         {
             Logger.Log("HAT", $"HAT Mod Loader {Version}{Suffix}");
+            ClearExtractedZipMods();
 
             var hasMods = false;
             if (GetModProxies(out var proxies))
@@ -74,6 +75,30 @@ namespace HatModLoader.Source
             }
 
             Logger.Log("HAT", LogSeverity.Warning, "Skip the initialization process...");
+        }
+
+        private static void ClearExtractedZipMods()
+        {
+            foreach (var path in Directory.EnumerateDirectories(ModsDirectory))
+            {
+                var name = Path.GetFileName(path);
+                if (name.StartsWith(".hat-", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var isLink = (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+                        Directory.Delete(path, recursive: !isLink);
+                    }
+                    catch (IOException ex)
+                    {
+                        Logger.Log("HAT", LogSeverity.Warning, $"Could not clear staged mod folder '{path}': {ex.Message}");
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        Logger.Log("HAT", LogSeverity.Warning, $"Could not clear staged mod folder '{path}': {ex.Message}");
+                    }
+                }
+            }
         }
 
         private static bool GetModProxies(out IEnumerable<IFileProxy> proxies)

@@ -1,6 +1,4 @@
 using System.IO.Compression;
-using System.Reflection;
-using System.Runtime.InteropServices;
 
 namespace HatModLoader.Source.FileProxies
 {
@@ -68,53 +66,6 @@ namespace HatModLoader.Source.FileProxies
         private ZipArchiveEntry GetEntry(string localPath)
         {
             return _archive.Entries.FirstOrDefault(e => e.Name.Length > 0 && e.FullName == localPath);
-        }
-
-        public IntPtr LoadLibrary(string localPath)
-        {
-            var tempFile = Path.GetTempFileName();
-            using (var fs = File.Create(tempFile))
-            using (var s = GetEntry(localPath).Open())
-                s.CopyTo(fs);
-
-            var handle = NativeLibrary.Load(tempFile);
-            if (handle != IntPtr.Zero)
-            {
-                _tempFiles.Add(handle, tempFile);
-            }
-
-            return handle;
-        }
-
-        public void UnloadLibrary(IntPtr handle)
-        {
-            if (_tempFiles.TryGetValue(handle, out var tempFile))
-            {
-                NativeLibrary.Free(handle);
-                File.Delete(tempFile);
-                _tempFiles.Remove(handle);
-            }
-        }
-
-        public bool IsDotNetAssembly(string localPath)
-        {
-            var tempFile = Path.GetTempFileName();
-            var result = true;
-
-            try
-            {
-                using (var fs = File.Create(tempFile))
-                using (var s = GetEntry(localPath).Open())
-                    s.CopyTo(fs);
-                AssemblyName.GetAssemblyName(tempFile);
-            }
-            catch (BadImageFormatException)
-            {
-                result = false;     // Native library file
-            }
-
-            File.Delete(tempFile);
-            return result;
         }
 
         public void Dispose()
