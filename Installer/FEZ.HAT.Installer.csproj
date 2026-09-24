@@ -29,6 +29,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Installer.txt" LogicalName="Installer.txt" />
     <EmbeddedResource Include="Installer.ico" LogicalName="Installer.ico" />
+    <EmbeddedResource Include="FNA.dll.config" LogicalName="FNA.dll.config" />
   </ItemGroup>
 
   <!-- Build the plugin to produce HAT.zip without referencing its assembly. -->
