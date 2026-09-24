@@ -50,7 +50,12 @@ public sealed class Deps
         [JsonPropertyName("runtime")] public Dictionary<string, RuntimeAsset> Runtime { get; set; } = new();
     }
 
-    public sealed class RuntimeAsset;
+    public sealed class RuntimeAsset
+    {
+        [JsonPropertyName("localPath")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? LocalPath { get; set; }
+    }
 
     public sealed class LibraryInfo
     {
@@ -61,29 +66,30 @@ public sealed class Deps
         [JsonPropertyName("sha512")] public string Sha512 { get; set; } = "";
     }
 
-    public static Deps Create(string entryAssemblyPath)
+    public static Deps Create(string entryAssemblyPath, IEnumerable<string> dependencyDirectories)
     {
         var gameDir = Path.GetDirectoryName(entryAssemblyPath)!;
         var assemblies = new Dictionary<string, ManagedAssembly>(StringComparer.OrdinalIgnoreCase);
-        var pending = new Stack<string>();
-        pending.Push(entryAssemblyPath);
+        var pending = new Stack<ManagedAssembly>();
+
+        AddAssembly(entryAssemblyPath);
+        foreach (var directory in dependencyDirectories)
+        {
+            if (!Directory.Exists(directory))
+            {
+                throw new InstallerException($"Managed dependency directory is missing: {directory}");
+            }
+
+            foreach (var path in Directory.EnumerateFiles(directory, "*.dll", SearchOption.TopDirectoryOnly))
+            {
+                AddAssembly(path);
+            }
+        }
 
         while (pending.Count > 0)
         {
-            var path = pending.Pop();
-            using var assembly = AssemblyDefinition.ReadAssembly(path);
-            var name = assembly.Name.Name;
-            if (assemblies.ContainsKey(name))
-            {
-                continue;
-            }
-
-            var references = assembly.MainModule.AssemblyReferences
-                .Select(reference => reference.Name)
-                .ToArray();
-
-            assemblies.Add(name, new ManagedAssembly(path, name, assembly.Name.Version, references));
-            foreach (var reference in references)
+            var assembly = pending.Pop();
+            foreach (var reference in assembly.References)
             {
                 if (assemblies.ContainsKey(reference) || IsFrameworkAssembly(reference))
                 {
@@ -93,11 +99,11 @@ public sealed class Deps
                 var localPath = Path.Combine(gameDir, reference + ".dll");
                 if (File.Exists(localPath))
                 {
-                    pending.Push(localPath);
+                    AddAssembly(localPath);
                 }
-                else if (!IsHatDependency(reference))
+                else
                 {
-                    throw new InstallerException($"Cannot resolve managed dependency '{reference}' of {name}.");
+                    throw new InstallerException($"Cannot resolve managed dependency '{reference}' of {assembly.Name}.");
                 }
             }
         }
@@ -108,7 +114,7 @@ public sealed class Deps
         {
             var library = new TargetLibrary();
             var relativePath = Path.GetRelativePath(gameDir, assembly.Path).Replace('\\', '/');
-            library.Runtime.Add(relativePath, new RuntimeAsset());
+            library.Runtime.Add(relativePath, new RuntimeAsset { LocalPath = relativePath });
 
             foreach (var reference in assembly.References)
             {
@@ -128,10 +134,23 @@ public sealed class Deps
 
         return deps;
 
-        bool IsHatDependency(string name)
+        void AddAssembly(string path)
         {
-            return File.Exists(Path.Combine(gameDir, "HATDependencies", "MonoMod", name + ".dll")) ||
-                   File.Exists(Path.Combine(gameDir, "HATDependencies", "FEZRepacker.Core", name + ".dll"));
+            using var definition = AssemblyDefinition.ReadAssembly(path);
+            var name = definition.Name.Name;
+            if (assemblies.TryGetValue(name, out var existing))
+            {
+                throw new InstallerException(
+                    $"Duplicate managed assembly identity '{name}': {existing.Path} and {path}.");
+            }
+
+            var references = definition.MainModule.AssemblyReferences
+                .Select(reference => reference.Name)
+                .ToArray();
+
+            var assembly = new ManagedAssembly(path, name, definition.Name.Version, references);
+            assemblies.Add(name, assembly);
+            pending.Push(assembly);
         }
 
         bool IsFrameworkAssembly(string name)

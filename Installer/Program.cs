@@ -489,7 +489,14 @@ public static class Program
         #region Dependency Manifest
 
         {
-            var deps = Deps.Create(hatPath);
+            var gameDir = Path.GetDirectoryName(hatPath)!;
+            var dependencyDirectories = new[]
+            {
+                Path.Combine(gameDir, "HATDependencies", "MonoMod"),
+                Path.Combine(gameDir, "HATDependencies", "FEZRepacker.Core")
+            };
+
+            var deps = Deps.Create(hatPath, dependencyDirectories);
             var path = Path.ChangeExtension(hatPath, "deps.json");
             using var stream = File.Create(path);
             JsonSerializer.Serialize(stream, deps, DeploymentJsonContext.Default.Deps);
