@@ -37,8 +37,6 @@ namespace HatModLoader.Source.ModDefinition
 
         public DependencyInfo[] Dependencies { get; set; }
         
-        public NativeLibrary[] NativeDependencies { get; set; }
-        
         public static bool TryLoad(IFileProxy proxy, out Metadata metadata)
         {
             if (!proxy.FileExists(ModMetadataFile))
@@ -91,38 +89,6 @@ namespace HatModLoader.Source.ModDefinition
                     }
                 }
             }
-        }
-        
-        [Serializable]
-        public struct NativeLibrary
-        {
-            [XmlAttribute] public Architecture Architecture { get; set; }
-    
-            [XmlAttribute] public OSPlatform Platform { get; set; }
-
-            [XmlText]
-            public string Path
-            {
-                get => _path;
-                set => _path = value?.Trim();
-            }
-    
-            private string _path;
-        }
-
-        public enum Architecture
-        {
-            X86,
-            X64,
-            Arm,
-            Arm64
-        }
-
-        public enum OSPlatform
-        {
-            Windows,
-            Linux,
-            OSX
         }
     }
 }

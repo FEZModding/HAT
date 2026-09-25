@@ -3,14 +3,12 @@
     public interface IFileProxy : IDisposable
     {
         public string RootPath { get; }
+        public string CodeRootPath { get; }
         public string ContainerName { get; }
         public IEnumerable<string> EnumerateFiles(string localPath);
         public bool FileExists(string localPath);
         public Stream OpenFile(string localPath);
         public DateTime GetLastModified(string localPath);
         public void Refresh();
-        public IntPtr LoadLibrary(string localPath);
-        public void UnloadLibrary(IntPtr handle);
-        public bool IsDotNetAssembly(string localPath);
     }
 }

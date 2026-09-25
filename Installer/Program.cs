@@ -1,15 +1,13 @@
+using System.Formats.Tar;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.RegularExpressions;
-using AsmResolver;
-using AsmResolver.PE;
-using AsmResolver.PE.Builder;
-using AsmResolver.PE.Win32Resources.Icon;
+using System.Xml.Serialization;
 using Microsoft.Win32;
-using Mono.Cecil;
-using Mono.Cecil.Cil;
 using MonoMod;
+using MonoMod.RuntimeDetour.HookGen;
 
 namespace FEZ.HAT.Installer;
 
@@ -17,25 +15,26 @@ public static class Program
 {
     private const string FezExecutable = "FEZ.exe";
 
-    private const string HatExecutable = "HAT.exe";
-
-    private const string MonoRoot = "/usr/lib/mono";
-
-    private static string? UserFezPath = null;
-    private static string? UserMonoRoot = null;
+    private static string? _userFezPath;
 
     public static void Main(string[] args)
     {
+        ParseCommandLineArguments(args);
         PrintHeader();
         try
         {
-            ParseCommandLineArguments(args);
             if (TryFindFezExecutable(out var fezPath))
             {
+                var originalFezPath = CreateOriginalCopy(fezPath);
                 ExtractHatDependencies(fezPath);
-                var hatPath = PatchExecutable(fezPath);
-                ReplaceExecutableIcon(hatPath);
-                PostInstallationSetup(hatPath);
+                var convertedFezPath = ConvertAssemblies(originalFezPath, fezPath);
+                GenerateHooks(convertedFezPath);
+                var hatPath = PatchAssemblies(convertedFezPath);
+                WriteDeploymentMetadata(hatPath);
+                CopyFnaFiles(originalFezPath, hatPath);
+                CopyContentsFolder(originalFezPath, hatPath);
+                PostInstallationCleanup(hatPath);
+                PrintOutput(originalFezPath);
             }
         }
         catch (InstallerException ex)
@@ -53,13 +52,17 @@ public static class Program
 
     private static void PrintHeader()
     {
-        using var stream = GetResource("HAT.txt");
+        using var stream = GetResource("Installer.txt");
         using var logo = new StreamReader(stream);
         Console.WriteLine(logo.ReadToEnd());
 
         const int logoWidth = 50;
-        const string version = $"{ThisAssembly.Git.BaseVersion.Major}.{ThisAssembly.Git.BaseVersion.Minor}.{ThisAssembly.Git.BaseVersion.Patch}";
-        const string commit = ThisAssembly.Git.Branch + "-" + ThisAssembly.Git.Commit;
+        const string version = $"{ThisAssembly.Git.BaseVersion.Major}." +
+                               $"{ThisAssembly.Git.BaseVersion.Minor}." +
+                               $"{ThisAssembly.Git.BaseVersion.Patch}";
+
+        const string commit = ThisAssembly.Git.Branch +
+                              "-" + ThisAssembly.Git.Commit;
 
         Console.WriteLine($"HAT Installer v{version} ({commit})".PadLeft(logoWidth));
         Console.WriteLine("Created by zerocker and FEZModding community".PadLeft(logoWidth));
@@ -94,11 +97,10 @@ public static class Program
             switch (queue.Dequeue().ToLowerInvariant())
             {
                 case "-p" or "--path":
-                    UserFezPath = Path.GetFullPath(queue.Dequeue());
+                {
+                    _userFezPath = Path.GetFullPath(queue.Dequeue());
                     break;
-                case "-m" or "--mono-path":
-                    UserMonoRoot = Path.GetFullPath(queue.Dequeue());
-                    break;
+                }
             }
         }
     }
@@ -108,15 +110,16 @@ public static class Program
         var path = string.Empty;
         {
             Console.WriteLine("[HAT] Checking CLI \"--path\" or \"-p\" argument");
-            if (UserFezPath != null)
-                path = UserFezPath;
+            if (_userFezPath != null)
+                path = _userFezPath;
         }
 
         if (string.IsNullOrEmpty(path))
         {
             Console.WriteLine("[HAT] Checking current working directory");
             var cwd = Environment.CurrentDirectory;
-            if (File.Exists(Path.Combine(cwd, FezExecutable)))
+            if (File.Exists(Path.Combine(cwd, FezExecutable)) ||
+                File.Exists(Path.Combine(cwd, "Original", FezExecutable)))
             {
                 path = cwd;
             }
@@ -208,7 +211,7 @@ public static class Program
         if (!string.IsNullOrEmpty(path))
         {
             executable = Path.Combine(path, FezExecutable);
-            if (File.Exists(executable))
+            if (File.Exists(executable) || File.Exists(Path.Combine(path, "Original", FezExecutable)))
             {
                 Console.WriteLine($"[HAT] Executable found at {executable}");
                 return true;
@@ -219,231 +222,377 @@ public static class Program
         throw new InstallerException("Could not find FEZ. Use --path <dir> or run from the FEZ game directory.");
     }
 
+    private static string CreateOriginalCopy(string fezPath)
+    {
+        var fezDir = Path.GetDirectoryName(fezPath)!;
+        var originalDir = Path.Combine(fezDir, "Original");
+        if (Directory.Exists(originalDir))
+        {
+            return Path.Combine(originalDir, Path.GetFileName(fezPath));
+        }
+
+        var tempDir = Path.Combine(Path.GetDirectoryName(fezDir)!, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            foreach (var source in Directory.GetFiles(fezDir))
+            {
+                File.Move(source, Path.Combine(tempDir, Path.GetFileName(source)));
+            }
+
+            foreach (var source in Directory.GetDirectories(fezDir))
+            {
+                Directory.Move(source, Path.Combine(tempDir, Path.GetFileName(source)));
+            }
+
+            Directory.Move(tempDir, originalDir);
+        }
+        catch
+        {
+            if (Directory.Exists(tempDir))
+            {
+                foreach (var source in Directory.GetFiles(tempDir))
+                {
+                    File.Move(source, Path.Combine(fezDir, Path.GetFileName(source)));
+                }
+
+                foreach (var source in Directory.GetDirectories(tempDir))
+                {
+                    Directory.Move(source, Path.Combine(fezDir, Path.GetFileName(source)));
+                }
+
+                Directory.Delete(tempDir);
+            }
+
+            throw;
+        }
+
+        return Path.Combine(originalDir, Path.GetFileName(fezPath));
+    }
+
     private static void ExtractHatDependencies(string path)
     {
-        var hatDependenciesDir = Path.Combine(Path.GetDirectoryName(path)!, "HATDependencies");
+        var gameDir = Path.GetDirectoryName(path)!;
+        var hatDependenciesDir = Path.Combine(gameDir, "HATDependencies");
         if (Directory.Exists(hatDependenciesDir))
         {
             Console.WriteLine("[HAT] Clearing existing HATDependencies");
             Directory.Delete(hatDependenciesDir, recursive: true);
         }
 
-        using var stream = GetResource("HAT.zip");
-        using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
+        #region HAT modloader
 
-        foreach (var entry in zip.Entries)
         {
-            var destination = Path.Combine(Path.GetDirectoryName(path)!, entry.FullName);
-            if (entry.FullName.EndsWith('/'))
+            using var stream = GetResource("HAT.zip");
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
+            Console.WriteLine("[HAT] Extracting mod loader dependencies");
+
+            foreach (var entry in zip.Entries)
             {
-                Directory.CreateDirectory(destination);
-                continue;
+                var destination = Path.Combine(gameDir, entry.FullName);
+                if (entry.FullName.EndsWith('/'))
+                {
+                    Directory.CreateDirectory(destination);
+                    continue;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                using var source = entry.Open();
+                using var file = File.Create(destination);
+                source.CopyTo(file);
+            }
+        }
+
+        #endregion
+
+        #region Game app host
+
+        {
+            var appHostPath = Path.Combine(gameDir,
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "HAT.exe" : "HAT");
+
+            using (var appHost = GetResource("HAT.AppHost"))
+            {
+                Console.WriteLine("[HAT] Extracting new game app host");
+                using (var file = File.Create(appHostPath))
+                {
+                    appHost.CopyTo(file);
+                }
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            using var source = entry.Open();
-            using var file = File.Create(destination);
-            source.CopyTo(file);
-            Console.WriteLine($"[HAT] Extracting {entry.FullName}");
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                File.SetUnixFileMode(appHostPath,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                    UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                    UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+            }
         }
-    }
 
-    private static string PatchExecutable(string path)
-    {
-        var basePath = Path.GetDirectoryName(path)!;
-        using var modder = new MonoModder();
+        #endregion
 
-        modder.InputPath = path;
-        modder.OutputPath = path.Replace(FezExecutable, HatExecutable);
-        modder.ReadingMode = ReadingMode.Deferred;
-        modder.AssemblyResolver = BuildResolver(basePath);
-        modder.MissingDependencyThrow = true;
-        modder.WriterParameters = new WriterParameters
-        {
-            SymbolWriterProvider = new PortablePdbWriterProvider(),
-            WriteSymbols = true
-        };
+        #region .NET self-contained runtime
 
-        modder.Read();
-        modder.ReadMod(Path.Combine(basePath, "FEZ.HAT.mm.dll"));
-        modder.ReadMod(Path.Combine(basePath, "FEZ.Hooks.mm.dll"));
-        modder.MapDependencies();
-        modder.AutoPatch();
-        modder.Write();
+        var runtimeDir = Path.Combine(hatDependenciesDir, "Runtime");
+        Directory.CreateDirectory(runtimeDir);
+        using var runtime = GetResource("HAT.Runtime");
+        Console.WriteLine("[HAT] Extracting .NET self-contained runtime");
 
-        return modder.OutputPath;
-    }
-
-    private static DefaultAssemblyResolver BuildResolver(string path)
-    {
-        var resolver = new DefaultAssemblyResolver();
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            // .NET Framework install - registry tells us where
-            var netFxRoot = (string)Registry.GetValue(
-                @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework",
-                "InstallRoot", ""
-            )!;
-
-            if (string.IsNullOrEmpty(netFxRoot))
-            {
-                netFxRoot = Directory.EnumerateDirectories(path, "v4.*")
-                    .OrderByDescending(d => d)
-                    .FirstOrDefault();
-            }
-
-            if (!string.IsNullOrEmpty(netFxRoot))
-            {
-                var installFolder = Directory.EnumerateDirectories(netFxRoot, "v4.*")
-                    .OrderByDescending(d => d)
-                    .FirstOrDefault();
-                resolver.AddSearchDirectory(installFolder);
-            }
+            ZipFile.ExtractToDirectory(runtime, runtimeDir);
         }
         else
         {
-            string? monoPath = null;
-
-            Console.WriteLine("[HAT] Checking CLI \"--mono-path\" or \"-m\" argument");
-            if (UserMonoRoot != null) {
-                monoPath = UserMonoRoot;
-            }
-
-            if (string.IsNullOrEmpty(monoPath)) {
-                // Prefer 4.8-api, fall back to any 4.x directory
-                Console.WriteLine("[HAT] Checking for system Mono");
-                monoPath = Directory.Exists(MonoRoot)
-                    ? Directory.EnumerateDirectories(MonoRoot, "4.*")
-                        .Where(d => File.Exists(Path.Combine(d, "Facades", "netstandard.dll")))
-                        .OrderByDescending(d => d)
-                        .FirstOrDefault()
-                    : null;
-            }
-
-            if (!string.IsNullOrEmpty(monoPath))
-            {
-                Console.WriteLine($"[HAT] Using system Mono for patching: {monoPath}");
-                resolver.AddSearchDirectory(monoPath);
-                var netstandard = Path.Combine(monoPath, "Facades", "netstandard.dll");
-                if (File.Exists(netstandard))
-                {
-                    // Copy netstandard.dll from the resolved 4.x api dir so FEZRepacker can load it at runtime
-                    File.Copy(netstandard, Path.Combine(path, "netstandard.dll"), overwrite: true);
-                }
-            }
-            else
-            {
-                Console.WriteLine("[HAT] System Mono not found, falling back to MonoKickstart libraries");
-                resolver.AddSearchDirectory(path);
-                var netstandard = Path.Combine(path, "netstandard.dll");
-                if (!File.Exists(netstandard))
-                {
-                    throw new InstallerException("Please supplement netstandard.dll one from mono package.");
-                }
-            }
+            using var gzip = new GZipStream(runtime, CompressionMode.Decompress);
+            TarFile.ExtractToDirectory(gzip, runtimeDir, overwriteFiles: false);
         }
 
-        resolver.AddSearchDirectory(Path.Combine(path, "HATDependencies", "MonoMod"));
-        resolver.AddSearchDirectory(Path.Combine(path, "HATDependencies", "FEZRepacker.Core"));
-
-        return resolver;
+        #endregion
     }
 
-    private static void ReplaceExecutableIcon(string path)
+    private static string ConvertAssemblies(string originalFezPath, string fezPath)
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        var gameDir = Path.GetDirectoryName(originalFezPath)!;
+        var gameExecutable = new FileInfo(originalFezPath);
+        var gameAssemblies = new[]
         {
-            return;
-        }
-
-        Console.WriteLine("[HAT] Patching executable icon");
-
-        using var stream = GetResource("HAT.ico");
-        var iconData = new byte[stream.Length];
-        stream.ReadExactly(iconData);
-
-        // Parse ISO directory entry (first entry at offset 6)
-        const int entryOffset = 6;
-        var width = iconData[entryOffset];
-        var height = iconData[entryOffset + 1];
-        var colorCount = iconData[entryOffset + 2];
-        var planes = (ushort)BitConverter.ToInt16(iconData, entryOffset + 4);
-        var bpp = (ushort)BitConverter.ToInt16(iconData, entryOffset + 6);
-        var imageSize = BitConverter.ToInt32(iconData, entryOffset + 8);
-        var imageOffset = BitConverter.ToInt32(iconData, entryOffset + 12);
-        var pixelData = iconData.Skip(imageOffset).Take(imageSize).ToArray();
-
-        var image = PEImage.FromFile(path);
-        var iconResource = IconResource.FromDirectory(image.Resources!, IconType.Icon);
-
-        var group = iconResource!.Groups.First();
-        var entry = group.Icons.OrderByDescending(i => i.Width).First();
-        entry.PixelData = new DataSegment(pixelData);
-        entry.Width = width == 0 ? (byte)255 : width; // 0 in ICO = 256, but byte max is 255
-        entry.Height = height == 0 ? (byte)255 : height;
-        entry.ColorCount = colorCount;
-        entry.Planes = planes;
-        entry.BitsPerPixel = bpp;
-
-        iconResource.InsertIntoDirectory(image.Resources!);
-
-        var tempPath = path + ".tmp";
-        var builder = new ManagedPEFileBuilder();
-        builder.CreateFile(image).Write(tempPath);
-        File.Move(tempPath, path, overwrite: true);
-    }
-
-    private static void PostInstallationSetup(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
-            return;
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            Console.WriteLine("Done! Run HAT.exe to launch the modded game.");
-            return;
-        }
-
-        // Copy the monokickstart binaries so that /proc/self/exe resolves to
-        // HAT.bin.*, causing the embedded Mono runtime to load HAT.exe instead of FEZ.exe
-        Console.WriteLine("[HAT] Copying MonoKickstart");
-        var basePath2 = Path.GetDirectoryName(path)!;
-        var kickstartBinaries = new Dictionary<string, string>
-        {
-            ["FEZ.bin.x86"] = "HAT.bin.x86",
-            ["FEZ.bin.x86_64"] = "HAT.bin.x86_64",
-            ["FEZ.bin.osx"] = "HAT.bin.osx"
+            gameExecutable,
+            new FileInfo(Path.Combine(gameDir, "Common.dll")),
+            new FileInfo(Path.Combine(gameDir, "ContentSerialization.dll")),
+            new FileInfo(Path.Combine(gameDir, "EasyStorage.dll")),
+            new FileInfo(Path.Combine(gameDir, "FNA.dll")),
+            new FileInfo(Path.Combine(gameDir, "FezEngine.dll")),
+            new FileInfo(Path.Combine(gameDir, "SimpleDefinitionLanguage.dll")),
+            new FileInfo(Path.Combine(gameDir, "XnaWordWrapCore.dll"))
         };
 
-        foreach (var (src, dst) in kickstartBinaries)
+        var fezDir = new DirectoryInfo(Path.GetDirectoryName(fezPath)!);
+        Console.WriteLine("[HAT] Converting game assemblies to CoreCLR");
+
+        var resolverDir = new DirectoryInfo(GetExtractedRuntimeDirectory(fezDir.FullName));
+        var resolverInputs = new List<FileInfo>();
+
+        var steamworksPath = Path.Combine(gameDir, "Steamworks.NET.dll");
+        if (File.Exists(steamworksPath))
         {
-            var srcPath = Path.Combine(basePath2, src);
-            if (File.Exists(srcPath))
-            {
-                File.Copy(srcPath, Path.Combine(basePath2, dst), overwrite: true);
-            }
+            Console.WriteLine("[HAT] Creating inert Steamworks.NET assembly");
+            var steamworksStub =
+                AssemblyConverter.AssemblyStubber.Stub(new FileInfo(steamworksPath), fezDir, resolverDir);
+            resolverInputs.Add(steamworksStub);
         }
 
-        // Copy launch script mirroring the original FEZ script
-        Console.WriteLine("[HAT] Creating launch script");
-        var script = path.Replace(HatExecutable, "HAT");
-        using (var stream = GetResource("HAT.sh"))
+        var converted =
+            AssemblyConverter.AssemblyConverter.Convert(fezDir, resolverDir, resolverInputs, gameAssemblies);
+        return converted[0].FullName;
+    }
+
+    private static string GetExtractedRuntimeDirectory(string gameDir)
+    {
+        var sharedRuntimeDir = Path.Combine(gameDir, "HATDependencies", "Runtime", "shared", "Microsoft.NETCore.App");
+        var runtimeDirectories = Directory.Exists(sharedRuntimeDir)
+            ? Directory.GetDirectories(sharedRuntimeDir)
+            : [];
+
+        if (runtimeDirectories.Length != 1 || !File.Exists(Path.Combine(runtimeDirectories[0], "mscorlib.dll")))
         {
-            using (var file = File.Create(script))
-            {
-                stream.CopyTo(file);
-            }
+            throw new InvalidOperationException(
+                $"Expected one extracted .NET runtime with mscorlib.dll in {sharedRuntimeDir}.");
         }
 
-        // chmod +x
-        File.SetUnixFileMode(script,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-            UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-            UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        return runtimeDirectories[0];
+    }
 
-        Console.WriteLine("Done! Run ./HAT to launch the modded game.");
+    private static void GenerateHooks(string hatPath)
+    {
+        var gameDir = Path.GetDirectoryName(hatPath)!;
+        var monoModDir = Path.Combine(gameDir, "HATDependencies", "MonoMod");
+        var runtimeDir = GetExtractedRuntimeDirectory(gameDir);
+        Console.WriteLine("[HAT] Generating MonoMod hooks");
+
+        var gameAssembliesToPatch = new[]
+        {
+            hatPath,
+            Path.Combine(gameDir, "FezEngine.dll"),
+            Path.Combine(gameDir, "FNA.dll")
+        };
+
+        foreach (var assemblyPath in gameAssembliesToPatch)
+        {
+            var outputPath = Path.Combine(gameDir, "MMHOOK_" + Path.GetFileName(assemblyPath));
+            using var modder = new MonoModder
+            {
+                InputPath = assemblyPath,
+                OutputPath = outputPath,
+                MissingDependencyThrow = false
+            };
+            modder.DependencyDirs.Add(monoModDir);
+            modder.DependencyDirs.Add(runtimeDir);
+            modder.Read();
+            modder.MapDependencies();
+
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+
+            var generator = new HookGenerator(modder, Path.GetFileName(outputPath));
+            using var output = generator.OutputModule;
+            generator.Generate();
+            output.Write(outputPath);
+        }
+    }
+
+    private static string PatchAssemblies(string convertedFezPath)
+    {
+        var gameDir = Path.GetDirectoryName(convertedFezPath)!;
+        var hatPath = Path.Combine(gameDir, "HAT.dll");
+        Console.WriteLine("[HAT] Applying HAT patch");
+
+        using var modder = new MonoModder
+        {
+            InputPath = convertedFezPath,
+            OutputPath = hatPath,
+            MissingDependencyThrow = false
+        };
+
+        modder.DependencyDirs.Add(Path.Combine(gameDir, "HATDependencies", "MonoMod"));
+        modder.DependencyDirs.Add(Path.Combine(gameDir, "HATDependencies", "FEZRepacker.Core"));
+        modder.DependencyDirs.Add(GetExtractedRuntimeDirectory(gameDir));
+        modder.Read();
+        modder.ReadMod(Path.Combine(gameDir, "FEZ.HAT.mm.dll"));
+        modder.MapDependencies();
+        modder.AutoPatch();
+        modder.WriterParameters.WriteSymbols = false;
+        modder.WriterParameters.SymbolWriterProvider = null;
+        modder.Write();
+
+        return hatPath;
+    }
+
+    private static void WriteDeploymentMetadata(string hatPath)
+    {
+        Console.WriteLine("[HAT] Writing .NET deployment metadata");
+
+        #region Runtime Configuration
+
+        {
+            var runtimeConfig = new RuntimeConfig();
+            var path = Path.ChangeExtension(hatPath, "runtimeconfig.json");
+            using var stream = File.Create(path);
+            JsonSerializer.Serialize(stream, runtimeConfig, DeploymentJsonContext.Default.RuntimeConfig);
+        }
+
+        #endregion
+
+        #region Dependency Manifest
+
+        {
+            var gameDir = Path.GetDirectoryName(hatPath)!;
+            var dependencyDirectories = new[]
+            {
+                Path.Combine(gameDir, "HATDependencies", "MonoMod"),
+                Path.Combine(gameDir, "HATDependencies", "FEZRepacker.Core")
+            };
+
+            var deps = Deps.Create(hatPath, dependencyDirectories);
+            var path = Path.ChangeExtension(hatPath, "deps.json");
+            using var stream = File.Create(path);
+            JsonSerializer.Serialize(stream, deps, DeploymentJsonContext.Default.Deps);
+        }
+
+        #endregion
+    }
+
+    private static void CopyFnaFiles(string originalFezPath, string hatPath)
+    {
+        var originalDir = Path.GetDirectoryName(originalFezPath)!;
+        var hatDir = Path.GetDirectoryName(hatPath)!;
+
+        using var configResource = GetResource("FNA.dll.config");
+        var config = FnaDllConfig.Load(configResource, leaveOpen: true);
+
+        Console.WriteLine("[HAT] Copying native libraries");
+        File.Copy(Path.Combine(originalDir, "gamecontrollerdb.txt"),
+            Path.Combine(hatDir, "gamecontrollerdb.txt"), overwrite: true);
+
+        var copied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sourceDir = FnaDllConfigExtensions.GetOperatingSystem()
+            .GetLibrariesDirectory(originalDir);
+
+        foreach (var mapping in config.Dependencies)
+        {
+            var target = mapping.Target;
+            if (string.IsNullOrWhiteSpace(target) || Path.GetFileName(target) != target || !copied.Add(target))
+            {
+                throw new InstallerException($"Invalid or duplicate FNA native target: '{target}'.");
+            }
+
+            var source = Path.Combine(sourceDir, target);
+            if (!File.Exists(source))
+            {
+                if (mapping.Dll is "SDL2_image.dll" or "libtheoraplay.dll")
+                {
+                    continue;
+                }
+
+                throw new InstallerException($"Required FNA native library is missing: {source}");
+            }
+
+            File.Copy(source, Path.Combine(hatDir, target), overwrite: true);
+        }
+
+        configResource.Seek(0, SeekOrigin.Begin);
+        using var configDestination = File.Create(Path.Combine(hatDir, "FNA.dll.config"));
+        configResource.CopyTo(configDestination);
+    }
+
+    private static void CopyContentsFolder(string originalFezPath, string hatPath)
+    {
+        var sourceDir = Path.Combine(Path.GetDirectoryName(originalFezPath)!, "Content");
+        var destinationDir = Path.Combine(Path.GetDirectoryName(hatPath)!, "Content");
+
+        Console.WriteLine("[HAT] Copying Content folder");
+        Directory.CreateDirectory(destinationDir);
+        foreach (var directory in Directory.EnumerateDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(destinationDir, Path.GetRelativePath(sourceDir, directory)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var destination = Path.Combine(destinationDir, Path.GetRelativePath(sourceDir, file));
+            File.Copy(file, destination, overwrite: true);
+        }
+    }
+
+    private static void PostInstallationCleanup(string hatPath)
+    {
+        var gameDir = Path.GetDirectoryName(hatPath)!;
+        Console.WriteLine("[HAT] Removing installation intermediates");
+
+        var intermediates = new[]
+        {
+            "FEZ.dll",
+            "FEZ.HAT.mm.dll",
+            "FEZ.HAT.mm.pdb",
+            "MMHOOK_FEZ.dll",
+            "MMHOOK_FezEngine.dll",
+            "MMHOOK_FNA.dll"
+        };
+
+        foreach (var file in intermediates)
+        {
+            File.Delete(Path.Combine(gameDir, file));
+        }
+    }
+
+    private static void PrintOutput(string originalFezPath)
+    {
+        var executable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "HAT.exe" : "./HAT";
+        Console.WriteLine($"Done! Run {executable} to launch the modded game :>");
+        Console.WriteLine($"The vanilla game is available at: {originalFezPath}");
     }
 
     private static void WaitForUserInput()
@@ -460,7 +609,7 @@ public static class Program
     private static Stream GetResource(string resource)
     {
         return Assembly.GetExecutingAssembly().GetManifestResourceStream(resource)
-               ?? throw new InstallerException("HAT binaries not found in installer - rebuild the solution.");
+               ?? throw new InstallerException($"Resource '{resource}' not found in installer - rebuild the solution.");
     }
 }
 

@@ -1,12 +1,11 @@
-﻿using System.Reflection;
-
-namespace HatModLoader.Source.FileProxies
+﻿namespace HatModLoader.Source.FileProxies
 {
     internal class DirectoryFileProxy : IFileProxy
     {
         private string modDirectory;
 
         public string RootPath => modDirectory;
+        public string CodeRootPath => Path.GetFullPath(RootPath);
         public string ContainerName => new DirectoryInfo(modDirectory).Name;
 
         public DirectoryFileProxy(string directoryPath)
@@ -46,36 +45,12 @@ namespace HatModLoader.Source.FileProxies
 
         public void Refresh() { }
 
-        public IntPtr LoadLibrary(string localPath)
-        {
-            return NativeLibraryInterop.Load(Path.Combine(modDirectory, localPath));
-        }
-
-        public void UnloadLibrary(IntPtr handle)
-        {
-            NativeLibraryInterop.Free(handle);
-        }
-
-        public bool IsDotNetAssembly(string localPath)
-        {
-            try
-            {
-                var fullPath = Path.Combine(modDirectory, localPath);
-                AssemblyName.GetAssemblyName(fullPath);
-                return true;
-            }
-            catch (BadImageFormatException)
-            {
-                return false;   // Native library file
-            }
-        }
-
         public void Dispose() { }
-
 
         public static IEnumerable<DirectoryFileProxy> EnumerateInDirectory(string directory)
         {
             return Directory.EnumerateDirectories(directory)
+                .Where(path => !Path.GetFileName(path).StartsWith(".hat-", StringComparison.OrdinalIgnoreCase))
                 .Select(path => new DirectoryFileProxy(path));
         }
     }

@@ -15,6 +15,8 @@ namespace HatModLoader.Source
     {
         private static readonly string ModsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods");
 
+        public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "HAT");
+
         private static readonly IList<string> IgnoredModNames = InitializeIgnoredModsList();
 
         private static readonly IList<string> PriorityModNames = InitializePriorityList();
@@ -55,16 +57,22 @@ namespace HatModLoader.Source
         {
             Logger.Log("HAT", $"HAT Mod Loader {Version}{Suffix}");
 
+            var hasMods = false;
             if (GetModProxies(out var proxies))
             {
                 if (GetModList(proxies, out var mods))
                 {
                     ResolveDependencies(mods);
                     LoadMods();
-                    Worlds = new WorldsManifest(Mods);
-                    InitializeAssemblies();
-                    return; // HAT initialized
+                    hasMods = true;
                 }
+            }
+
+            Worlds = new WorldsManifest(Mods);
+            if (hasMods)
+            {
+                InitializeAssemblies();
+                return; // HAT initialized
             }
 
             Logger.Log("HAT", LogSeverity.Warning, "Skip the initialization process...");
@@ -172,8 +180,7 @@ namespace HatModLoader.Source
 
         public static void RegisterRequiredDependencyResolvers()
         {
-            AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("MonoMod"));
-            AssemblyResolverRegistry.Register(new HatSubdirectoryAssemblyResolver("FEZRepacker.Core"));
+            FnaNativeLibraryResolver.Register();
         }
 
         private static IList<string> InitializeIgnoredModsList() =>

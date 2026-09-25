@@ -1,52 +1,42 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>HATinstaller</AssemblyName>
     <OutputType>Exe</OutputType>
-    <LangVersion>11</LangVersion>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Installer.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ApplicationIcon>HAT.ico</ApplicationIcon>
-    <PublishSingleFile>true</PublishSingleFile>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
-	<!-- these are needed for newer .NET version -->
-    <PackageReference Include="System.Security.Permissions" Version="8.0.0"/>
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0"/>
-    <PackageReference Include="System.Threading.AccessControl" Version="8.0.0"/>
-    <PackageReference Include="System.Drawing.Common" Version="8.0.0"/>
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0"/>
-    <PackageReference Include="System.CodeDom" Version="8.0.0"/>
-    <PackageReference Include="System.IO.Ports" Version="8.0.0"/>
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.0"/>
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.0"/>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="AsmResolver" Version="6.0.0-rc.1"/>
-    <PackageReference Include="AsmResolver.PE" Version="6.0.0-rc.1"/>
-    <PackageReference Include="AsmResolver.PE.Win32Resources" Version="6.0.0-rc.1"/>
     <PackageReference Include="GitInfo" Version="3.6.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="MonoMod" Version="22.7.31.1"/>
+    <ProjectReference Include="..\AssemblyConverter\FEZ.HAT.AssemblyConverter.csproj" />
+    <ProjectReference Include="..\MonoMod\src\MonoMod.Patcher\MonoMod.Patcher.csproj"
+                      AdditionalProperties="OutputType=Library;GenerateRuntimeConfigurationFiles=true" />
+    <ProjectReference Include="..\MonoMod\src\MonoMod.RuntimeDetour.HookGen\MonoMod.RuntimeDetour.HookGen.csproj"
+                      AdditionalProperties="OutputType=Library;GenerateRuntimeConfigurationFiles=true" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="HAT.txt" LogicalName="HAT.txt"/>
-    <EmbeddedResource Include="HAT.sh" LogicalName="HAT.sh"/>
-    <EmbeddedResource Include="HAT.ico" LogicalName="HAT.ico"/>
+    <EmbeddedResource Include="Installer.txt" LogicalName="Installer.txt" />
+    <EmbeddedResource Include="Installer.ico" LogicalName="Installer.ico" />
+    <EmbeddedResource Include="FNA.dll.config" LogicalName="FNA.dll.config" />
   </ItemGroup>
 
+  <!-- Build the plugin to produce HAT.zip without referencing its assembly. -->
   <ItemGroup>
-    <ProjectReference Include="..\Plugin\FEZ.HAT.mm.csproj">
+    <ProjectReference Include="..\Plugin\FEZ.HAT.mm.csproj" ReferenceOutputAssembly="false">
       <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
     </ProjectReference>
   </ItemGroup>
@@ -58,5 +48,6 @@
   </ItemGroup>
 
   <Import Project="ZIPHat.targets"/>
+  <Import Project="NETRuntime.targets"/>
 
 </Project>
