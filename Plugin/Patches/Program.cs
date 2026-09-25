@@ -19,7 +19,6 @@ namespace FezGame
             // Ensure uniform culture
             Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
             Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
-            LoggerModifier.InstallConsoleLogging();
 
             // The game is encapsulating the main game component in a Logger-based try-catch.
             // However, occasionally, error can occur during HAT initialisation, or when the
