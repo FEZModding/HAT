@@ -3,6 +3,7 @@
     public interface IFileProxy : IDisposable
     {
         public string RootPath { get; }
+        public string CodeRootPath { get; }
         public string ContainerName { get; }
         public IEnumerable<string> EnumerateFiles(string localPath);
         public bool FileExists(string localPath);
