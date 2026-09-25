@@ -248,6 +248,13 @@ public static class AssemblyConverter
 
                     il.Replace(instruction, il.Create(OpCodes.Nop));
                 }
+
+                if (method.DeclaringType.FullName == "FezGame.Components.GameLightingPostProcess" &&
+                    method.Name == "DoSetup")
+                {
+                    // ILHook must be able to clone this method before it can install a replacement.
+                    RemoveLightingErrorDialogCalls(method);
+                }
             }
 
             module.Types.Remove(errorDialog);
@@ -310,6 +317,49 @@ public static class AssemblyConverter
             {
                 throw new ConversionException($"ErrorDialog remained in {file}.");
             }
+        }
+    }
+
+    private static void RemoveLightingErrorDialogCalls(MethodDefinition method)
+    {
+        var showDialogCalls = 0;
+        foreach (var instruction in method.Body.Instructions)
+        {
+            if (instruction.Operand is not MethodReference called)
+            {
+                continue;
+            }
+
+            if (called.Name == "ShowDialog" &&
+                called.DeclaringType.FullName == "System.Windows.Forms.Form")
+            {
+                var discardResult = instruction.Next;
+                if (called.Parameters.Count != 0 || called.ReturnType.MetadataType == MetadataType.Void ||
+                    discardResult?.OpCode != OpCodes.Pop)
+                {
+                    throw new ConversionException($"Unexpected ErrorDialog.ShowDialog call in {method.FullName}.");
+                }
+
+                // The converter replaces the ErrorDialog constructor with null.
+                // Consume that receiver and remove the WinForms method reference.
+                instruction.OpCode = OpCodes.Pop;
+                instruction.Operand = null;
+                discardResult.OpCode = OpCodes.Nop;
+                discardResult.Operand = null;
+                showDialogCalls++;
+            }
+            else if (called is { Name: "Dispose", HasThis: true } && called.Parameters.Count == 0 &&
+                     called.ReturnType.MetadataType == MetadataType.Void)
+            {
+                // The dialog is now null, so its using cleanup only needs to consume the receiver.
+                instruction.OpCode = OpCodes.Pop;
+                instruction.Operand = null;
+            }
+        }
+
+        if (showDialogCalls != 1)
+        {
+            throw new ConversionException($"Expected one ErrorDialog.ShowDialog call in {method.FullName}.");
         }
     }
 }
