@@ -5,6 +5,7 @@
         private string modDirectory;
 
         public string RootPath => modDirectory;
+        public string CodeRootPath => Path.GetFullPath(RootPath);
         public string ContainerName => new DirectoryInfo(modDirectory).Name;
 
         public DirectoryFileProxy(string directoryPath)

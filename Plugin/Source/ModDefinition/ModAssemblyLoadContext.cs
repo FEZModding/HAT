@@ -1,8 +1,5 @@
 using System.Reflection;
 using System.Runtime.Loader;
-using System.IO.Compression;
-using System.Security.Cryptography;
-using HatModLoader.Source.FileProxies;
 
 namespace HatModLoader.Source.ModDefinition;
 
@@ -19,9 +16,7 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
     public ModAssemblyLoadContext(ModContainer mod) : base($"HAT mod: {mod.Metadata.Name}", true)
     {
         _mod = mod;
-        var root = mod.FileProxy is ZipFileProxy
-            ? ExtractZip(mod.FileProxy.RootPath)
-            : Path.GetFullPath(mod.FileProxy.RootPath);
+        var root = mod.FileProxy.CodeRootPath;
 
         _entryPath = EntryPath(root, mod.Metadata.LibraryName);
         if (!File.Exists(_entryPath))
@@ -124,74 +119,5 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
         }
 
         return path;
-    }
-
-    private static string ExtractZip(string zipPath)
-    {
-        string hash;
-        using (var zipStream = File.OpenRead(zipPath))
-        {
-            hash = Convert.ToHexString(SHA256.HashData(zipStream)).ToLowerInvariant()[..8];
-        }
-
-        var modsDirectory = Path.GetDirectoryName(Path.GetFullPath(zipPath))!;
-        var root = Path.Combine(modsDirectory, ".hat-" + hash);
-        if (Directory.Exists(root))
-        {
-            return root;
-        }
-
-        Directory.CreateDirectory(root);
-        if (OperatingSystem.IsWindows())
-        {
-            File.SetAttributes(root, File.GetAttributes(root) | FileAttributes.Hidden);
-        }
-
-        try
-        {
-            using var archive = ZipFile.OpenRead(zipPath);
-            foreach (var entry in archive.Entries)
-            {
-                var relative = entry.FullName.Replace('\\', '/');
-                if (relative.Length == 0)
-                {
-                    continue;
-                }
-
-                var path = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
-                var comparison = OperatingSystem.IsWindows()
-                    ? StringComparison.OrdinalIgnoreCase
-                    : StringComparison.Ordinal;
-
-                if (Path.IsPathRooted(relative) || !path.StartsWith(root + Path.DirectorySeparatorChar, comparison))
-                {
-                    throw new InvalidDataException($"Unsafe ZIP entry in '{zipPath}': {entry.FullName}");
-                }
-
-                if (!relative.EndsWith('/') && IsCodeFile(relative))
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                    entry.ExtractToFile(path);
-                }
-            }
-        }
-        catch
-        {
-            Directory.Delete(root, true);
-            throw;
-        }
-
-        return root;
-    }
-
-    private static bool IsCodeFile(string path)
-    {
-        var name = Path.GetFileName(path);
-        return name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
-               name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-               name.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase) ||
-               name.EndsWith(".so", StringComparison.OrdinalIgnoreCase) ||
-               name.Contains(".so.", StringComparison.OrdinalIgnoreCase) ||
-               name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase);
     }
 }
