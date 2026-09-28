@@ -32,7 +32,7 @@ public static class Program
                 var hatPath = PatchAssemblies(convertedFezPath);
                 WriteDeploymentMetadata(hatPath);
                 CopyFnaFiles(originalFezPath, hatPath);
-                CopyContentsFolder(originalFezPath, hatPath);
+                LinkContentsFolder(originalFezPath, hatPath);
                 PostInstallationCleanup(hatPath);
                 PrintOutput(originalFezPath);
             }
@@ -548,12 +548,33 @@ public static class Program
         configResource.CopyTo(configDestination);
     }
 
-    private static void CopyContentsFolder(string originalFezPath, string hatPath)
+    private static void LinkContentsFolder(string originalFezPath, string hatPath)
     {
         var sourceDir = Path.Combine(Path.GetDirectoryName(originalFezPath)!, "Content");
         var destinationDir = Path.Combine(Path.GetDirectoryName(hatPath)!, "Content");
 
-        Console.WriteLine("[HAT] Copying Content folder");
+        var destinationInfo = new DirectoryInfo(destinationDir);
+        if (destinationInfo is { Exists: true, LinkTarget: not null })
+        {
+            Console.WriteLine("[HAT] Content folder is already linked");
+            return;
+        }
+
+        if (!destinationInfo.Exists)
+        {
+            try
+            {
+                var target = Path.GetRelativePath(Path.GetDirectoryName(destinationDir)!, sourceDir);
+                Directory.CreateSymbolicLink(destinationDir, target);
+                Console.WriteLine("[HAT] Linked Content folder to Original/Content");
+                return;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+            {
+                Console.WriteLine($"[HAT] Could not link Content folder ({ex.Message}); copying it instead");
+            }
+        }
+
         Directory.CreateDirectory(destinationDir);
         foreach (var directory in Directory.EnumerateDirectories(sourceDir, "*", SearchOption.AllDirectories))
         {
