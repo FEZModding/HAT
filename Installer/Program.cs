@@ -400,15 +400,59 @@ public static class Program
         var steamworksPath = Path.Combine(gameDir, "Steamworks.NET.dll");
         if (File.Exists(steamworksPath))
         {
-            Console.WriteLine("[HAT] Creating inert Steamworks.NET assembly");
-            var steamworksStub =
-                AssemblyConverter.AssemblyStubber.Stub(new FileInfo(steamworksPath), fezDir, resolverDir);
-            resolverInputs.Add(steamworksStub);
+            InstallSteamworks(fezDir.FullName);
+            resolverInputs.Add(new FileInfo(Path.Combine(fezDir.FullName, "Steamworks.NET.dll")));
         }
 
         var converted =
             AssemblyConverter.AssemblyConverter.Convert(fezDir, resolverDir, resolverInputs, gameAssemblies);
         return converted[0].FullName;
+    }
+
+    private static void InstallSteamworks(string gameDir)
+    {
+        string platform;
+        string nativeLibrary;
+        string nativeEntry;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            platform = "Windows-x86";
+            nativeLibrary = "steam_api.dll";
+            nativeEntry = $"{platform}/{nativeLibrary}";
+        }
+        else
+        {
+            platform = "OSX-Linux-x64";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                nativeLibrary = "libsteam_api.dylib";
+                nativeEntry = $"{platform}/steam_api.bundle/Contents/MacOS/{nativeLibrary}";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                nativeLibrary = "libsteam_api.so";
+                nativeEntry = $"{platform}/{nativeLibrary}";
+            }
+            else
+            {
+                throw new PlatformNotSupportedException();
+            }
+        }
+
+        Console.WriteLine("[HAT] Replacing old Steamworks.NET with new one");
+        using var archiveResource = GetResource("Steamworks.NET.zip");
+        using var archive = new ZipArchive(archiveResource, ZipArchiveMode.Read);
+        Extract($"{platform}/Steamworks.NET.dll", "Steamworks.NET.dll");
+        Extract(nativeEntry, nativeLibrary);
+
+        return;
+
+        void Extract(string entryName, string fileName)
+        {
+            var entry = archive.GetEntry(entryName)!;
+            entry.ExtractToFile(Path.Combine(gameDir, fileName), overwrite: true);
+        }
     }
 
     private static string GetExtractedRuntimeDirectory(string gameDir)

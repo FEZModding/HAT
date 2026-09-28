@@ -8,6 +8,8 @@ public sealed class ConversionException(string message) : Exception(message);
 
 public static class AssemblyConverter
 {
+    private const string SteamworksNetAssembly = "Steamworks.NET";
+
     private static readonly string[] MonoKickstartAssemblies =
     [
         "Microsoft.CSharp",
@@ -60,6 +62,14 @@ public static class AssemblyConverter
         }
 
         var assemblyResolver = BuildAssemblyResolver(resolver, [.. sources, .. resolverInputs]);
+        var steamworksInput = resolverInputs.FirstOrDefault(fi => fi.Name == SteamworksNetAssembly + ".dll");
+        Version? steamworksVersion = null;
+        if (steamworksInput != null)
+        {
+            using var steamworks = AssemblyDefinition.ReadAssembly(steamworksInput.FullName);
+            steamworksVersion = steamworks.Name.Version;
+        }
+
         var converted = new List<FileInfo>(sources.Length);
 
         foreach (var source in sources)
@@ -77,6 +87,10 @@ public static class AssemblyConverter
 
             ValidateDependencies(module, rootNames, source);
             RetargetFramework(module);
+            if (steamworksVersion != null)
+            {
+                RetargetSteamworks(module, steamworksVersion);
+            }
             RemoveCodeAccessSecurity(module);
             RemoveErrorDialog(module);
 
@@ -89,6 +103,45 @@ public static class AssemblyConverter
 
         ValidateOutputs(converted);
         return converted;
+    }
+
+    private static void RetargetSteamworks(ModuleDefinition module, Version version)
+    {
+        var reference = module.AssemblyReferences.FirstOrDefault(anr => anr.Name == SteamworksNetAssembly);
+        if (reference == null)
+        {
+            return;
+        }
+
+        reference.Version = version;
+        foreach (var type in module.GetTypes())
+        {
+            foreach (var method in type.Methods)
+            {
+                if (!method.HasBody)
+                {
+                    continue;
+                }
+
+                foreach (var instruction in method.Body.Instructions)
+                {
+                    if (instruction.Operand is MethodReference called &&
+                        called.DeclaringType.FullName == "Steamworks.SteamUserStats" &&
+                        called.Name == "RequestCurrentStats")
+                    {
+                        if (instruction.Next?.OpCode != OpCodes.Pop)
+                        {
+                            throw new ConversionException(
+                                $"Unexpected RequestCurrentStats call in {method.FullName}.");
+                        }
+
+                        // Steamworks.NET 2025 no longer exposes this call. Its return value is discarded by FEZ.
+                        instruction.OpCode = OpCodes.Ldc_I4_1;
+                        instruction.Operand = null;
+                    }
+                }
+            }
+        }
     }
 
     private static void ValidateInputs(FileInfo[] assemblies)

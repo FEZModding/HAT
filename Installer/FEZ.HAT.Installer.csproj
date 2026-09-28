@@ -7,7 +7,7 @@
     <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>Installer.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\Installer.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -30,9 +30,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Installer.txt" LogicalName="Installer.txt" />
-    <EmbeddedResource Include="Installer.ico" LogicalName="Installer.ico" />
-    <EmbeddedResource Include="FNA.dll.config" LogicalName="FNA.dll.config" />
+    <EmbeddedResource Include="Resources\FNA.dll.config" LogicalName="FNA.dll.config" />
+    <EmbeddedResource Include="Resources\Steamworks.NET.zip" LogicalName="Steamworks.NET.zip" />
+    <EmbeddedResource Include="Resources\Installer.txt" LogicalName="Installer.txt" />
   </ItemGroup>
 
   <!-- Build the plugin to produce HAT.zip without referencing its assembly. -->
