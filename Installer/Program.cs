@@ -15,6 +15,12 @@ public static class Program
 {
     private const string FezExecutable = "FEZ.exe";
 
+    private static readonly string FezLauncher =
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "FEZ.exe" : "FEZ";
+
+    private static readonly string AppHostLauncher =
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "HAT.exe" : "HAT";
+
     private static string? _userFezPath;
 
     public static void Main(string[] args)
@@ -33,6 +39,7 @@ public static class Program
                 WriteDeploymentMetadata(hatPath);
                 CopyFnaFiles(originalFezPath, hatPath);
                 LinkContentsFolder(originalFezPath, hatPath);
+                RenameExecutable(hatPath);
                 PostInstallationCleanup(hatPath);
                 PrintOutput(originalFezPath);
             }
@@ -172,6 +179,11 @@ public static class Program
                     {
                         var folder = m.Groups[1].Value.Replace(@"\\", @"\"); // unescape VDF backslashes
                         var candidate = Path.Combine(folder, "steamapps", "common", "FEZ");
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        {
+                            candidate = Path.Combine(candidate, "FEZ.app", "Contents", "MacOS");
+                        }
+
                         if (Directory.Exists(candidate))
                         {
                             path = candidate;
@@ -228,6 +240,7 @@ public static class Program
         var originalDir = Path.Combine(fezDir, "Original");
         if (Directory.Exists(originalDir))
         {
+            RestoreGogFiles(originalDir, fezDir);
             return Path.Combine(originalDir, Path.GetFileName(fezPath));
         }
 
@@ -268,7 +281,20 @@ public static class Program
             throw;
         }
 
+        RestoreGogFiles(originalDir, fezDir);
         return Path.Combine(originalDir, Path.GetFileName(fezPath));
+    }
+
+    private static void RestoreGogFiles(string originalDir, string gameDir)
+    {
+        foreach (var source in Directory.EnumerateFiles(originalDir, "goggame-*", SearchOption.TopDirectoryOnly))
+        {
+            var destination = Path.Combine(gameDir, Path.GetFileName(source));
+            if (!File.Exists(destination))
+            {
+                File.Copy(source, destination);
+            }
+        }
     }
 
     private static void ExtractHatDependencies(string path)
@@ -309,13 +335,10 @@ public static class Program
         #region Game app host
 
         {
-            var appHostPath = Path.Combine(gameDir,
-                RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "HAT.exe" : "HAT");
-
             using (var appHost = GetResource("HAT.AppHost"))
             {
                 Console.WriteLine("[HAT] Extracting new game app host");
-                using (var file = File.Create(appHostPath))
+                using (var file = File.Create(Path.Combine(gameDir, AppHostLauncher)))
                 {
                     appHost.CopyTo(file);
                 }
@@ -323,7 +346,7 @@ public static class Program
 
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                File.SetUnixFileMode(appHostPath,
+                File.SetUnixFileMode(Path.Combine(gameDir, AppHostLauncher),
                     UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                     UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
                     UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
@@ -569,7 +592,8 @@ public static class Program
                 Console.WriteLine("[HAT] Linked Content folder to Original/Content");
                 return;
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+            catch (Exception ex) when
+                (ex is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
             {
                 Console.WriteLine($"[HAT] Could not link Content folder ({ex.Message}); copying it instead");
             }
@@ -586,6 +610,13 @@ public static class Program
             var destination = Path.Combine(destinationDir, Path.GetRelativePath(sourceDir, file));
             File.Copy(file, destination, overwrite: true);
         }
+    }
+
+    private static void RenameExecutable(string hatPath)
+    {
+        var gameDir = Path.GetDirectoryName(hatPath)!;
+        Console.WriteLine($"[HAT] Renaming game app host as {FezLauncher}");
+        File.Move(Path.Combine(gameDir, AppHostLauncher), Path.Combine(gameDir, FezLauncher), overwrite: true);
     }
 
     private static void PostInstallationCleanup(string hatPath)
@@ -611,8 +642,7 @@ public static class Program
 
     private static void PrintOutput(string originalFezPath)
     {
-        var executable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "HAT.exe" : "./HAT";
-        Console.WriteLine($"Done! Run {executable} to launch the modded game :>");
+        Console.WriteLine($"Done! Run {FezLauncher} to launch the modded game");
         Console.WriteLine($"The vanilla game is available at: {originalFezPath}");
     }
 
