@@ -20,23 +20,43 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 2. Run the installer. FEZ will be detected automatically from your Steam or GOG library. If detection fails, drop the installer into your FEZ game folder and run it from there, or use `--path <dir>`.
 
-3. Run `HAT.exe` (Windows) or `./HAT.sh` (Linux/macOS) and enjoy modding!
-
-> [!NOTE]
-> 
-> Linux/macOS requires system Mono (`mono` or similar package) for HAT installation.
+3. Run `HAT.exe` (Windows) or `./HAT` (Linux/macOS) and enjoy modding!
 
 ## Adding mods
 
-1. On first HAT launch, `Mods` directory should be created in the executable's directory. If not, create it.
-2. Download the mod's archive and put it in this directory.
-3. Start the game with `HAT.exe` / `./HAT.sh` and enjoy your mod!
+1. On first HAT launch, `Mods` directory will be created in the executable's directory.
+2. Download the mod's archive and put or extract it in this directory.
+3. Start the game with `HAT` and enjoy your mod!
 
 It's that simple!
 
 ## Building HAT
 
-HAT is now using stripped game binaries and NuGet packages for building process, so it is not required to configure anything. Building HAT libraries should be as easy as cloning the repository and running the building process within the IDE of your choice (or through dotnet CLI if that's your thing).
+Install the .NET 10 SDK and clone the repository with its MonoMod submodule:
+
+```sh
+git clone git@github.com/FEZModding/HAT.git --recursive
+```
+
+For an existing local repository, run:
+
+```
+git submodule update --init --recursive
+```
+
+To build the mod package on its own:
+
+```sh
+dotnet build Plugin/FEZ.HAT.mm.csproj -c Release
+```
+
+This produces `Plugin/bin/Release/HAT.zip`. To build a standalone installer, publish for your platform's runtime ID:
+
+```sh
+dotnet publish Installer/FEZ.HAT.Installer.csproj -c Release -r linux-x64 -o artifacts/installer-publish
+```
+
+Use `win-x64` on Windows or `osx-x64` on an Intel Mac in place of `linux-x64`.
 
 ## "Documentation"
 
