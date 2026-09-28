@@ -659,8 +659,28 @@ public static class Program
     private static void RenameExecutable(string hatPath)
     {
         var gameDir = Path.GetDirectoryName(hatPath)!;
-        Console.WriteLine($"[HAT] Renaming game app host as {FezLauncher}");
-        File.Move(Path.Combine(gameDir, AppHostLauncher), Path.Combine(gameDir, FezLauncher), overwrite: true);
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Console.WriteLine($"[HAT] Renaming game app host as {FezLauncher}");
+            File.Move(Path.Combine(gameDir, AppHostLauncher), Path.Combine(gameDir, FezLauncher), overwrite: true);
+            return;
+        }
+
+        // Some FEZ dylibs reference dependencies under /usr/local/lib, but we copy those
+        // dependencies beside the game. The launcher sets DYLD_LIBRARY_PATH before dyld loads
+        // them and also restores Steam's overlay variable.
+
+        Console.WriteLine("[HAT] Installing macOS game launcher");
+        File.Move(Path.Combine(gameDir, AppHostLauncher), Path.Combine(gameDir, "HAT.bin.osx"), overwrite: true);
+
+        using var launcherResource = GetResource("HAT.MacLauncher");
+        using var launcher = new StreamReader(launcherResource);
+        var launcherPath = Path.Combine(gameDir, FezLauncher);
+        File.WriteAllText(launcherPath, launcher.ReadToEnd().ReplaceLineEndings("\n"));
+        File.SetUnixFileMode(launcherPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
     }
 
     private static void PostInstallationCleanup(string hatPath)
