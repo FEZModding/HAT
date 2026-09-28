@@ -156,11 +156,12 @@ public static class AssemblyConverter
 
     internal static void RetargetFramework(ModuleDefinition module)
     {
-        // .NET resolves the other legacy framework references through compatibility assemblies and type forwarders.
+        // Keep System.Core identity so .NET 10 can forward types exposed in game APIs, such as HashSet<T>.
+        // Other legacy framework references can be resolved through compatibility assemblies and type forwarders.
         // This clears their original version and identity metadata so they do not retain the source assembly's requirements.
         foreach (var reference in module.AssemblyReferences)
         {
-            if (reference.Name != "mscorlib" && MonoKickstartAssemblies.Contains(reference.Name))
+            if (reference.Name is not ("mscorlib" or "System.Core") && MonoKickstartAssemblies.Contains(reference.Name))
             {
                 reference.Version = new Version(0, 0, 0, 0);
                 reference.PublicKeyToken = [];
