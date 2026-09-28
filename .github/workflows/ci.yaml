@@ -52,7 +52,7 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             artifact: HATinstaller-linux-x64
-          - os: macos-latest
+          - os: macos-15-intel
             rid: osx-x64
             artifact: HATinstaller-osx-x64
     runs-on: ${{ matrix.os }}
