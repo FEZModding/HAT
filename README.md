@@ -20,13 +20,13 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 2. Run the installer. FEZ will be detected automatically from your Steam or GOG library. If detection fails, drop the installer into your FEZ game folder and run it from there, or use `--path <dir>`.
 
-3. Run `HAT.exe` (Windows) or `./HAT` (Linux/macOS) and enjoy modding!
+3. Launch FEZ from Steam or GOG, or run `FEZ.exe` (Windows) or `./FEZ` (Linux/macOS) directly, and enjoy modding!
 
 ## Adding mods
 
 1. On first HAT launch, `Mods` directory will be created in the executable's directory.
 2. Download the mod's archive and put or extract it in this directory.
-3. Start the game with `HAT` and enjoy your mod!
+3. Start FEZ and enjoy your mod!
 
 It's that simple!
 
