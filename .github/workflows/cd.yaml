@@ -55,12 +55,13 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Publish installer
-        run: dotnet publish Installer/FEZ.HAT.Installer.csproj -c Release -r ${{ matrix.rid }}
+        run: dotnet publish Installer/FEZ.HAT.Installer.csproj -c Release -r ${{ matrix.rid }} -o artifacts/installer-publish
 
       - name: Rename artifact
         shell: bash
         run: |
-          src=$(find Installer/bin/Release -path '*/publish/HATinstaller' -o -path '*/publish/HATinstaller.exe' | head -1)
+          src="artifacts/installer-publish/HATinstaller"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then src+=".exe"; fi
           mv "$src" "${{ matrix.artifact }}"
 
       - name: Upload artifact
