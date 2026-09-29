@@ -44,13 +44,13 @@ For an existing local repository, run:
 git submodule update --init --recursive
 ```
 
-To build the mod package on its own:
+To build the plugin binaries on their own:
 
 ```sh
 dotnet build Plugin/FEZ.HAT.mm.csproj -c Release
 ```
 
-This produces `Plugin/bin/Release/HAT.zip`. To build a standalone installer, publish for your platform's runtime ID:
+This produces the plugin binaries in `Plugin/bin/Release/`. To build a standalone installer that packages and embeds those binaries, publish for your platform's runtime ID:
 
 ```sh
 dotnet publish Installer/FEZ.HAT.Installer.csproj -c Release -r linux-x64 -o artifacts/installer-publish
