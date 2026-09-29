@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using System.Reflection;
 using MonoMod.RuntimeDetour;
+using HatModLoader.Source.ModDefinition;
 
 namespace HatModLoader.Source.Assets
 {
@@ -86,7 +87,7 @@ namespace HatModLoader.Source.Assets
 
             foreach (var asset in GetOrderedAssets())
             {
-                if (asset.IsMusicFile) continue;
+                if (asset.AssetType != AssetType.Default) continue;
                 cachedAssets[asset.AssetPath] = asset.Data;
             }
 
@@ -99,7 +100,7 @@ namespace HatModLoader.Source.Assets
 
             foreach (var asset in GetOrderedAssets())
             {
-                if (!asset.IsMusicFile) continue;
+                if (asset.AssetType != AssetType.MusicFile) continue;
                 musicCache[asset.AssetPath] = asset.Data;
             }
 
@@ -108,7 +109,7 @@ namespace HatModLoader.Source.Assets
 
         public void InjectAsset(Asset asset)
         {
-            if (asset.IsMusicFile)
+            if (asset.AssetType == AssetType.MusicFile)
             {
                 var soundManager = (SoundManager)ServiceHelper.Get<ISoundManager>();
                 var musicCache = (Dictionary<string, byte[]>)_musicCacheField.GetValue(soundManager);
@@ -139,7 +140,7 @@ namespace HatModLoader.Source.Assets
 
         public void RemoveAsset(Asset asset)
         {
-            if (asset.IsMusicFile)
+            if (asset.AssetType == AssetType.MusicFile)
             {
                 var soundManager = (SoundManager)ServiceHelper.Get<ISoundManager>();
                 var musicCache = (Dictionary<string, byte[]>)_musicCacheField.GetValue(soundManager);

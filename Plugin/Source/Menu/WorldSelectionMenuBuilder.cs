@@ -32,7 +32,7 @@ public static class WorldSelectionMenuBuilder
         
         _worldListMenuHandler = new ListMenuHandler(new MenuMediator.LevelTemplate
         {
-            Title = "@CHOOSE WORLD",
+            Title = "HatChooseWorld",
             AButtonString = "ChooseWithGlyph",
         });
 

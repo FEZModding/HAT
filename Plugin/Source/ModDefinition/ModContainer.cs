@@ -1,5 +1,4 @@
-﻿using Common;
-using FezEngine.Tools;
+﻿using FezEngine.Tools;
 using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
 using Microsoft.Xna.Framework;
@@ -13,6 +12,8 @@ public class ModContainer : IDisposable
     public Metadata Metadata { get; }
 
     public AssetMod AssetMod { get; internal set; }
+
+    public ModText ModText { get; internal set; }
 
     public CodeMod CodeMod { get; internal set; }
 
@@ -49,6 +50,7 @@ public class ModContainer : IDisposable
     public IEnumerable<Asset> ReloadAssets()
     {
         FileProxy.Refresh();
+        List<Asset> changed;
         if (AssetMod == null)
         {
             if (!AssetMod.TryLoad(FileProxy, out var assetMod))
@@ -57,10 +59,27 @@ public class ModContainer : IDisposable
             }
 
             AssetMod = assetMod;
-            return AssetMod.Assets;
+            changed = AssetMod.Assets.ToList();
+        }
+        else
+        {
+            changed = AssetMod.Reload(FileProxy).ToList();
         }
 
-        return AssetMod.Reload(FileProxy);
+        if (changed.Any(asset => asset.AssetType == AssetType.ModTextResource))
+        {
+            if (ModText == null)
+            {
+                ModText.TryLoad(AssetMod, out var modText);
+                ModText = modText;
+            }
+            else if (!ModText.Reload(AssetMod))
+            {
+                ModText = null;
+            }
+        }
+
+        return changed;
     }
 
     public void Dispose()

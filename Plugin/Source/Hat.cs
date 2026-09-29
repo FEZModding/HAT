@@ -23,7 +23,9 @@ namespace HatModLoader.Source
 
         public List<ModContainer> Mods { get; } = new();
 
-        public AssetManager AssetManager { get; private set; }
+        public AssetManager AssetManager { get; }
+
+        public TextResourceManager TextResources { get; }
 
         public WorldsManifest Worlds { get; private set; }
 
@@ -50,6 +52,7 @@ namespace HatModLoader.Source
             Instance = this;
             _fezGame = fez;
             AssetManager = new AssetManager(this);
+            TextResources = new TextResourceManager(this);
             AssetManager.InitializeHooks();
         }
 
@@ -139,6 +142,7 @@ namespace HatModLoader.Source
         private void LoadMods()
         {
             var assetModCount = 0;
+            var modTextsCount = 0;
             var codeModsCount = 0;
 
             foreach (var mod in Mods)
@@ -148,6 +152,12 @@ namespace HatModLoader.Source
                     mod.AssetMod = assetMod;
                     assetModCount += 1;
                 }
+                
+                if (ModText.TryLoad(mod.AssetMod, out var modText))
+                {
+                    mod.ModText = modText;
+                    modTextsCount += 1;
+                }
 
                 if (CodeMod.TryLoad(mod.FileProxy, mod.Metadata, out var codeMod))
                 {
@@ -156,10 +166,11 @@ namespace HatModLoader.Source
                 }
             }
 
-            var modsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
+            var totatModsText = $"{Mods.Count} mod{(Mods.Count != 1 ? "s" : "")}";
             var codeModsText = $"{codeModsCount} code mod{(codeModsCount != 1 ? "s" : "")}";
             var assetModsText = $"{assetModCount} asset mod{(assetModCount != 1 ? "s" : "")}";
-            Logger.Log("HAT", $"Successfully loaded {modsText} ({codeModsText} and {assetModsText})");
+            var modTextsText = $"{modTextsCount} mod text{(modTextsCount != 1 ? "s" : "")}";
+            Logger.Log("HAT", $"Successfully loaded {totatModsText} ({codeModsText}, {assetModsText}, {modTextsText})");
         }
 
         private void InitializeAssemblies()

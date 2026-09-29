@@ -10,7 +10,7 @@ internal static class ModListMenuBuilder
         SetupMenuHandler();
         var openModsMenuItem = new MenuMediator.ItemTemplate
         {
-            Text = "@MODS",
+            Text = "HatMods",
             OnSelect = () => MenuMediator.OpenSubMenuLevel(menuBase, _modListMenuHandler.LevelTemplate)
         };
         MenuMediator.AddItemToMenuLevel(openModsMenuItem, MenuMediator.GetMenuRoot(menuBase), -3);
@@ -20,13 +20,13 @@ internal static class ModListMenuBuilder
     {
         _modListMenuHandler = new ListMenuHandler(new MenuMediator.LevelTemplate
         {
-            Title = "@MODS",
+            Title = "HatMods",
             Oversized = true,
         });
 
         _modListMenuHandler.LoopOver = true;
         _modListMenuHandler.NoThumbnail = true;
-        _modListMenuHandler.NoItemsText = "@No HAT Mods Installed";
+        _modListMenuHandler.NoItemsText = "HatNoMods";
 
         _modListMenuHandler.Items = Hat.Instance.Mods.Select(mod => new ListMenuHandler.Item
         {

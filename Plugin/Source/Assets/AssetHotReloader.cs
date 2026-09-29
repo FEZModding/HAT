@@ -4,6 +4,7 @@ using FezEngine.Services;
 using FezEngine.Structure;
 using FezEngine.Tools;
 using FezGame.Services;
+using HatModLoader.Source.ModDefinition;
 
 namespace HatModLoader.Source.Assets
 {
@@ -36,13 +37,18 @@ namespace HatModLoader.Source.Assets
 
             foreach (var asset in changedAssets)
             {
+                if (asset.AssetType == AssetType.ModTextResource)
+                {
+                    continue;
+                }
+
                 var isLevelDependency =
                     IsCurrentLevelDependency(asset, levelDependencyPaths, levelMusicDependencyPaths);
 
                 if (asset.IsRemoved)
                 {
                     hat.AssetManager.RemoveAsset(asset);
-                    if (!asset.IsMusicFile && !isLevelDependency)
+                    if (asset.AssetType != AssetType.MusicFile && !isLevelDependency)
                     {
                         hat.AssetManager.EvictFromCommon(asset.AssetPath);
                     }
@@ -50,7 +56,7 @@ namespace HatModLoader.Source.Assets
                 else
                 {
                     hat.AssetManager.InjectAsset(asset);
-                    if (!asset.IsMusicFile && !isLevelDependency)
+                    if (asset.AssetType != AssetType.MusicFile && !isLevelDependency)
                     {
                         hat.AssetManager.PatchInCommon(asset.AssetPath);
                     }
@@ -140,7 +146,7 @@ namespace HatModLoader.Source.Assets
             ISet<string> levelDependencyPaths,
             ISet<string> levelMusicDependencyPaths)
         {
-            return asset.IsMusicFile
+            return asset.AssetType == AssetType.MusicFile
                 ? levelMusicDependencyPaths.Contains(NormalizeAssetPath(asset.AssetPath))
                 : levelDependencyPaths.Contains(NormalizeAssetPath(asset.AssetPath));
         }
