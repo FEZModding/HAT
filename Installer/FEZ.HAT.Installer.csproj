@@ -9,6 +9,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Resources\Installer.ico</ApplicationIcon>
   </PropertyGroup>
+  
+  <PropertyGroup>
+    <!-- Expose GitInfo's generated ThisAssembly source to Rider after builds. -->
+    <UseTemplatedCode>true</UseTemplatedCode>
+  </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <SelfContained>true</SelfContained>
@@ -36,17 +41,11 @@
     <EmbeddedResource Include="Resources\Installer.txt" LogicalName="Installer.txt" />
   </ItemGroup>
 
-  <!-- Build the plugin to produce HAT.zip without referencing its assembly. -->
+  <!-- Build the plugin binaries without referencing its assembly. -->
   <ItemGroup>
     <ProjectReference Include="..\Plugin\FEZ.HAT.mm.csproj" ReferenceOutputAssembly="false">
       <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
     </ProjectReference>
-  </ItemGroup>
-
-  <!-- Rider design-time: resolve ThisAssembly even before HAT.zip exists -->
-  <ItemGroup>
-    <EmbeddedResource Include="..\Plugin\bin\$(Configuration)\HAT.zip" LogicalName="HAT.zip"
-                      Condition="Exists('..\Plugin\bin\$(Configuration)\HAT.zip')"/>
   </ItemGroup>
 
   <Import Project="ZIPHat.targets"/>

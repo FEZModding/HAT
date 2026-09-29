@@ -1,13 +1,26 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project>
 
-  <Target Name="ZIPHat" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true'">
-
+  <Target Name="ZIPHat" BeforeTargets="AssignTargetPaths" Condition="'$(DesignTimeBuild)' != 'true'">
     <PropertyGroup>
-      <HatZipPath>..\Plugin\bin\$(Configuration)\HAT.zip</HatZipPath>
+      <HatPluginDir>$(MSBuildThisFileDirectory)..\Plugin\bin\$(Configuration)\</HatPluginDir>
+      <HatStagingDir>$(IntermediateOutputPath)HAT.staging\</HatStagingDir>
+      <HatZipPath>$(IntermediateOutputPath)HAT.zip</HatZipPath>
     </PropertyGroup>
 
-    <Error Text="HAT.zip not found at $(HatZipPath)" Condition="!Exists('$(HatZipPath)')"/>
+    <Error Text="Plugin binary not found at $(HatPluginDir)FEZ.HAT.mm.dll"
+           Condition="!Exists('$(HatPluginDir)FEZ.HAT.mm.dll')"/>
+
+    <ItemGroup>
+      <HatDependenciesFiles Include="$(HatPluginDir)HATDependencies\**\*.dll"/>
+      <HatModFiles Include="$(HatPluginDir)FEZ.HAT.mm.dll"/>
+      <HatModFiles Include="$(HatPluginDir)FEZ.HAT.mm.pdb" Condition="'$(Configuration)' == 'Debug'"/>
+    </ItemGroup>
+
+    <RemoveDir Directories="$(HatStagingDir)"/>
+    <Copy SourceFiles="@(HatDependenciesFiles)" DestinationFolder="$(HatStagingDir)HATDependencies\%(RecursiveDir)"/>
+    <Copy SourceFiles="@(HatModFiles)" DestinationFolder="$(HatStagingDir)"/>
+    <ZipDirectory SourceDirectory="$(HatStagingDir)" DestinationFile="$(HatZipPath)" Overwrite="true"/>
+    <RemoveDir Directories="$(HatStagingDir)"/>
 
     <ItemGroup>
       <EmbeddedResource Include="$(HatZipPath)" LogicalName="HAT.zip"/>
