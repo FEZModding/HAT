@@ -1,10 +1,12 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Xml.Serialization;
 using Microsoft.Win32;
 using MonoMod;
 using MonoMod.RuntimeDetour.HookGen;
@@ -13,6 +15,13 @@ namespace FEZ.HAT.Installer;
 
 public static class Program
 {
+    private enum WindowsError
+    {
+        AccessDenied = 5,
+        Cancelled = 1223,
+        PrivilegeNotHeld = 1314
+    }
+
     private const string FezExecutable = "FEZ.exe";
 
     private static readonly string FezLauncher =
@@ -636,10 +645,19 @@ public static class Program
                 Console.WriteLine("[HAT] Linked Content folder to Original/Content");
                 return;
             }
-            catch (Exception ex) when
-                (ex is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+            catch (Exception e) when (e is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
             {
-                Console.WriteLine($"[HAT] Could not link Content folder ({ex.Message}); copying it instead");
+                // Request elevation only for Windows permission failures, before copying game assets.
+                var error = (WindowsError)(e.HResult & ushort.MaxValue);
+                if (OperatingSystem.IsWindows() && 
+                    error is WindowsError.AccessDenied or WindowsError.PrivilegeNotHeld &&
+                    TryLinkContentsFolderAsAdministrator(sourceDir, destinationDir))
+                {
+                    Console.WriteLine("[HAT] Linked Content folder to Original/Content");
+                    return;
+                }
+
+                Console.WriteLine($"[HAT] Could not link Content folder ({e.Message}); copying it instead");
             }
         }
 
@@ -653,6 +671,71 @@ public static class Program
         {
             var destination = Path.Combine(destinationDir, Path.GetRelativePath(sourceDir, file));
             File.Copy(file, destination, overwrite: true);
+        }
+    }
+
+    private static bool TryLinkContentsFolderAsAdministrator(string sourceDir, string destinationDir)
+    {
+        // Keep unattended installs on the copy fallback instead of opening a UAC prompt.
+        if (Console.IsInputRedirected)
+        {
+            return false;
+        }
+
+        Console.WriteLine("[HAT] Linking Content requires administrator privileges.");
+        Console.Write("Allow a Windows administrator prompt to create the link instead of copying Content? [y/N] ");
+        var response = Console.ReadLine()?.Trim();
+        if (!string.Equals(response, "y", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Elevate only link creation. Encode paths separately so PowerShell cannot interpret their contents.
+        var encodedSource = Convert.ToBase64String(Encoding.Unicode.GetBytes(Path.GetFullPath(sourceDir)));
+        var encodedDestination = Convert.ToBase64String(Encoding.Unicode.GetBytes(Path.GetFullPath(destinationDir)));
+        var script = $"$source = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('{encodedSource}')); " +
+                     $"$destination = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('{encodedDestination}')); " +
+                     "try { New-Item -ItemType SymbolicLink -Path $destination " +
+                     "-Target $source -ErrorAction Stop | Out-Null; exit 0 } catch { exit 1 }";
+        var encodedScript = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
+            Arguments = $"-NoProfile -NonInteractive -EncodedCommand {encodedScript}",
+            UseShellExecute = true,
+            Verb = "runas",
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process == null)
+            {
+                return false;
+            }
+
+            process.WaitForExit();
+            if (process.ExitCode != 0)
+            {
+                return false;
+            }
+
+            // Verify the helper actually created the expected link before reporting success.
+            var target = new DirectoryInfo(destinationDir).ResolveLinkTarget(returnFinalTarget: true);
+            return target != null &&
+                   string.Equals(target.FullName, Path.GetFullPath(sourceDir), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == (int)WindowsError.Cancelled)
+        {
+            Console.WriteLine("[HAT] Administrator prompt cancelled; copying Content instead");
+            return false;
+        }
+        catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[HAT] Could not create Content link as administrator ({ex.Message})");
+            return false;
         }
     }
 
