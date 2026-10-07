@@ -251,7 +251,8 @@ public static class Program
         }
 
         executable = string.Empty;
-        throw new InstallerException("Could not find FEZ. Use --path <dir> or place the installer in the FEZ game directory.");
+        throw new InstallerException(
+            "Could not find FEZ. Use --path <dir> or place the installer in the FEZ game directory.");
     }
 
     private static bool HasFezExecutable(string directory)
@@ -266,6 +267,7 @@ public static class Program
         var originalDir = Path.Combine(fezDir, OriginalFolder);
         if (Directory.Exists(originalDir))
         {
+            RestoreOriginalExecutablePermissions(originalDir);
             RestoreGogFiles(originalDir, fezDir);
             return Path.Combine(originalDir, Path.GetFileName(fezPath));
         }
@@ -330,8 +332,25 @@ public static class Program
             throw;
         }
 
+        RestoreOriginalExecutablePermissions(originalDir);
         RestoreGogFiles(originalDir, fezDir);
         return Path.Combine(originalDir, Path.GetFileName(fezPath));
+    }
+
+    private static void RestoreOriginalExecutablePermissions(string originalDir)
+    {
+        if (OperatingSystem.IsLinux() ||  OperatingSystem.IsMacOS())
+        {
+            foreach (var executable in new[] { "FEZ", "FEZ.bin.x86", "FEZ.bin.x86_64", "FEZ.bin.osx" })
+            {
+                var path = Path.Combine(originalDir, executable);
+                if (File.Exists(path))
+                {
+                    var mode = File.GetUnixFileMode(path);
+                    File.SetUnixFileMode(path, mode | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+                }
+            }
+        }
     }
 
     private static void RestoreGogFiles(string originalDir, string gameDir)
@@ -699,7 +718,8 @@ public static class Program
                     Console.WriteLine("[HAT] Linked Original/Content folder to root Content");
                     return;
                 }
-                catch (Exception e) when (e is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+                catch (Exception e) when (e is UnauthorizedAccessException or IOException
+                                              or PlatformNotSupportedException)
                 {
                     Console.WriteLine($"[HAT] Could not link Content folder ({e.Message}); copying it instead");
                 }
