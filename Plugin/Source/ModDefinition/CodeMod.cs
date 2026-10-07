@@ -61,11 +61,16 @@ namespace HatModLoader.Source.ModDefinition
             }
         }
 
+        public static bool HasLibrary(IFileProxy proxy, Metadata metadata)
+        {
+            return !string.IsNullOrEmpty(metadata.LibraryName) &&
+                   metadata.LibraryName.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) &&
+                   proxy.FileExists(metadata.LibraryName);
+        }
+
         public static bool TryLoad(IFileProxy proxy, Metadata metadata, out CodeMod codeMod)
         {
-            if (string.IsNullOrEmpty(metadata.LibraryName) ||
-                !metadata.LibraryName.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) ||
-                !proxy.FileExists(metadata.LibraryName))
+            if (!HasLibrary(proxy, metadata))
             {
                 codeMod = null;
                 return false;
