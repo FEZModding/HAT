@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\FNA.dll.config" LogicalName="FNA.dll.config" />
+    <EmbeddedResource Include="Resources\OriginalFiles.xml" LogicalName="OriginalFiles.xml" />
     <EmbeddedResource Include="Resources\Steamworks.NET.zip" LogicalName="Steamworks.NET.zip" />
     <EmbeddedResource Include="Resources\MacLauncher.sh" LogicalName="HAT.MacLauncher" />
     <EmbeddedResource Include="Resources\Installer.txt" LogicalName="Installer.txt" />

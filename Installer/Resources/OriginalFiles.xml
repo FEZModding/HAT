@@ -1,0 +1,72 @@
+<OriginalFiles>
+  <Group Platform="common">
+    <File>FEZ.exe</File>
+    <File>Common.dll</File>
+    <File>ContentSerialization.dll</File>
+    <File>EasyStorage.dll</File>
+    <File>FNA.dll</File>
+    <File>FezEngine.dll</File>
+    <File>SimpleDefinitionLanguage.dll</File>
+    <File>XnaWordWrapCore.dll</File>
+    <File>Steamworks.NET.dll</File>
+    <File>FNA.dll.config</File>
+    <File>gamecontrollerdb.txt</File>
+    <File>steam_appid.txt</File>
+    <File>Changelog.txt</File>
+    <Directory>Content</Directory>
+  </Group>
+  <Group Platform="windows">
+    <File>CSteamworks.dll</File>
+    <File>steam_api.dll</File>
+    <File>SDL2.dll</File>
+    <File>SDL2_image.dll</File>
+    <File>soft_oal.dll</File>
+    <File>mojoshader.dll</File>
+    <File>libogg.dll</File>
+    <File>libvorbis.dll</File>
+    <File>libvorbisfile.dll</File>
+    <File>libtheoraplay.dll</File>
+    <File>README.txt</File>
+    <File>installscript.vdf</File>
+  </Group>
+  <Group Platform="linux">
+    <File>FEZ</File>
+    <File>FEZ.bin.x86</File>
+    <File>FEZ.bin.x86_64</File>
+    <File>FEZ.bmp</File>
+    <File>Linux.README</File>
+    <File>monoconfig</File>
+    <File>mscorlib.dll</File>
+    <File>Mono.Posix.dll</File>
+    <File>Mono.Security.dll</File>
+    <File>System.dll</File>
+    <File>System.Configuration.dll</File>
+    <File>System.Core.dll</File>
+    <File>System.Data.dll</File>
+    <File>System.Drawing.dll</File>
+    <File>System.IO.Compression.dll</File>
+    <File>System.IO.Compression.FileSystem.dll</File>
+    <File>System.Security.dll</File>
+    <File>System.Xml.dll</File>
+    <Directory>lib</Directory>
+    <Directory>lib64</Directory>
+  </Group>
+  <Group Platform="osx">
+    <File>FEZ</File>
+    <File>FEZ.bin.osx</File>
+    <File>monoconfig</File>
+    <File>mscorlib.dll</File>
+    <File>Mono.Posix.dll</File>
+    <File>Mono.Security.dll</File>
+    <File>System.dll</File>
+    <File>System.Configuration.dll</File>
+    <File>System.Core.dll</File>
+    <File>System.Data.dll</File>
+    <File>System.Drawing.dll</File>
+    <File>System.IO.Compression.dll</File>
+    <File>System.IO.Compression.FileSystem.dll</File>
+    <File>System.Security.dll</File>
+    <File>System.Xml.dll</File>
+    <Directory>osx</Directory>
+  </Group>
+</OriginalFiles>

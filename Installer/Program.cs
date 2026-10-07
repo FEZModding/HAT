@@ -253,6 +253,23 @@ public static class Program
             return Path.Combine(originalDir, Path.GetFileName(fezPath));
         }
 
+        // Back up distro entries only so upgrades keep mods and user data beside the game
+        var platform = OriginalFilesExtensions.GetPlatform();
+        using var allowlistResource = GetResource("OriginalFiles.xml");
+        var allowlist = OriginalFiles.Load(allowlistResource, platform);
+        var comparer = platform == OriginalFiles.Platform.Windows
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
+        var files = allowlist.Files.ToHashSet(comparer);
+        var directories = allowlist.Directories.ToHashSet(comparer);
+
+        // GOG metadata must accompany the vanilla copy and remain available to its client
+        foreach (var source in Directory.EnumerateFiles(fezDir, "goggame-*", SearchOption.TopDirectoryOnly))
+        {
+            files.Add(Path.GetFileName(source));
+        }
+
         var tempDir = Path.Combine(Path.GetDirectoryName(fezDir)!, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
 
@@ -260,12 +277,18 @@ public static class Program
         {
             foreach (var source in Directory.GetFiles(fezDir))
             {
-                File.Move(source, Path.Combine(tempDir, Path.GetFileName(source)));
+                if (files.Contains(Path.GetFileName(source)))
+                {
+                    File.Move(source, Path.Combine(tempDir, Path.GetFileName(source)));
+                }
             }
 
             foreach (var source in Directory.GetDirectories(fezDir))
             {
-                Directory.Move(source, Path.Combine(tempDir, Path.GetFileName(source)));
+                if (directories.Contains(Path.GetFileName(source)))
+                {
+                    Directory.Move(source, Path.Combine(tempDir, Path.GetFileName(source)));
+                }
             }
 
             Directory.Move(tempDir, originalDir);
