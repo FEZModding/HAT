@@ -22,6 +22,8 @@ public static class Program
 
     private const string FezExecutable = "FEZ.exe";
 
+    private const string OriginalFolder = "Original";
+
     private static readonly string FezLauncher =
         RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "FEZ.exe" : "FEZ";
 
@@ -125,17 +127,28 @@ public static class Program
         {
             Console.WriteLine("[HAT] Checking CLI \"--path\" or \"-p\" argument");
             if (_userFezPath != null)
+            {
                 path = _userFezPath;
+            }
         }
 
         if (string.IsNullOrEmpty(path))
         {
             Console.WriteLine("[HAT] Checking current working directory");
             var cwd = Environment.CurrentDirectory;
-            if (File.Exists(Path.Combine(cwd, FezExecutable)) ||
-                File.Exists(Path.Combine(cwd, "Original", FezExecutable)))
+            if (HasFezExecutable(cwd))
             {
                 path = cwd;
+            }
+        }
+
+        if (string.IsNullOrEmpty(path))
+        {
+            Console.WriteLine("[HAT] Checking installer directory");
+            var installerDir = AppContext.BaseDirectory;
+            if (HasFezExecutable(installerDir))
+            {
+                path = installerDir;
             }
         }
 
@@ -230,7 +243,7 @@ public static class Program
         if (!string.IsNullOrEmpty(path))
         {
             executable = Path.Combine(path, FezExecutable);
-            if (File.Exists(executable) || File.Exists(Path.Combine(path, "Original", FezExecutable)))
+            if (HasFezExecutable(path))
             {
                 Console.WriteLine($"[HAT] Executable found at {executable}");
                 return true;
@@ -238,13 +251,19 @@ public static class Program
         }
 
         executable = string.Empty;
-        throw new InstallerException("Could not find FEZ. Use --path <dir> or run from the FEZ game directory.");
+        throw new InstallerException("Could not find FEZ. Use --path <dir> or place the installer in the FEZ game directory.");
+    }
+
+    private static bool HasFezExecutable(string directory)
+    {
+        return File.Exists(Path.Combine(directory, FezExecutable)) ||
+               File.Exists(Path.Combine(directory, OriginalFolder, FezExecutable));
     }
 
     private static string CreateOriginalCopy(string fezPath)
     {
         var fezDir = Path.GetDirectoryName(fezPath)!;
-        var originalDir = Path.Combine(fezDir, "Original");
+        var originalDir = Path.Combine(fezDir, OriginalFolder);
         if (Directory.Exists(originalDir))
         {
             RestoreGogFiles(originalDir, fezDir);
