@@ -17,9 +17,7 @@ public static class Program
 {
     private enum WindowsError
     {
-        AccessDenied = 5,
-        Cancelled = 1223,
-        PrivilegeNotHeld = 1314
+        Cancelled = 1223
     }
 
     private const string FezExecutable = "FEZ.exe";
@@ -649,8 +647,9 @@ public static class Program
 
     private static void LinkContentsFolder(string originalFezPath, string hatPath)
     {
-        var sourceDir = Path.Combine(Path.GetDirectoryName(originalFezPath)!, "Content");
-        var destinationDir = Path.Combine(Path.GetDirectoryName(hatPath)!, "Content");
+        // Share the root assets with the vanilla backup without moving Content out of the game
+        var sourceDir = Path.Combine(Path.GetDirectoryName(hatPath)!, "Content");
+        var destinationDir = Path.Combine(Path.GetDirectoryName(originalFezPath)!, "Content");
 
         var destinationInfo = new DirectoryInfo(destinationDir);
         if (destinationInfo is { Exists: true, LinkTarget: not null })
@@ -661,26 +660,30 @@ public static class Program
 
         if (!destinationInfo.Exists)
         {
-            try
+            // Windows always delegates link creation to an elevated helper
+            if (OperatingSystem.IsWindows())
             {
-                var target = Path.GetRelativePath(Path.GetDirectoryName(destinationDir)!, sourceDir);
-                Directory.CreateSymbolicLink(destinationDir, target);
-                Console.WriteLine("[HAT] Linked Content folder to Original/Content");
-                return;
-            }
-            catch (Exception e) when (e is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
-            {
-                // Request elevation only for Windows permission failures, before copying game assets.
-                var error = (WindowsError)(e.HResult & ushort.MaxValue);
-                if (OperatingSystem.IsWindows() && 
-                    error is WindowsError.AccessDenied or WindowsError.PrivilegeNotHeld &&
-                    TryLinkContentsFolderAsAdministrator(sourceDir, destinationDir))
+                if (TryLinkContentsFolderAsAdministrator(sourceDir, destinationDir))
                 {
-                    Console.WriteLine("[HAT] Linked Content folder to Original/Content");
+                    Console.WriteLine("[HAT] Linked Original/Content folder to root Content");
                     return;
                 }
 
-                Console.WriteLine($"[HAT] Could not link Content folder ({e.Message}); copying it instead");
+                Console.WriteLine("[HAT] Could not link Content folder; copying it instead");
+            }
+            else
+            {
+                try
+                {
+                    var target = Path.GetRelativePath(Path.GetDirectoryName(destinationDir)!, sourceDir);
+                    Directory.CreateSymbolicLink(destinationDir, target);
+                    Console.WriteLine("[HAT] Linked Original/Content folder to root Content");
+                    return;
+                }
+                catch (Exception e) when (e is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+                {
+                    Console.WriteLine($"[HAT] Could not link Content folder ({e.Message}); copying it instead");
+                }
             }
         }
 
@@ -699,20 +702,8 @@ public static class Program
 
     private static bool TryLinkContentsFolderAsAdministrator(string sourceDir, string destinationDir)
     {
-        // Keep unattended installs on the copy fallback instead of opening a UAC prompt.
-        if (Console.IsInputRedirected)
-        {
-            return false;
-        }
-
-        Console.WriteLine("[HAT] Linking Content requires administrator privileges.");
-        Console.Write("Allow a Windows administrator prompt to create the link instead of copying Content? [y/N] ");
-        var response = Console.ReadLine()?.Trim();
-        if (!string.Equals(response, "y", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
+        Console.WriteLine("[HAT] Requesting administrator privileges to link Content");
+        Thread.Sleep(TimeSpan.FromSeconds(2)); // User should be warned about this!
 
         // Elevate only link creation. Encode paths separately so PowerShell cannot interpret their contents.
         var encodedSource = Convert.ToBase64String(Encoding.Unicode.GetBytes(Path.GetFullPath(sourceDir)));
