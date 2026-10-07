@@ -13,7 +13,6 @@
     <File>gamecontrollerdb.txt</File>
     <File>steam_appid.txt</File>
     <File>Changelog.txt</File>
-    <Directory>Content</Directory>
   </Group>
   <Group Platform="windows">
     <File>CSteamworks.dll</File>
