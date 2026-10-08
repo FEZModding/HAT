@@ -66,6 +66,24 @@ HAT checks merged ModText entries before FEZ's `StaticText`, `GameText`, and `Cr
 
 Code mods can call `HatModLoader.Source.Hat.Instance.TextResources.TryGetString("MY_MOD_INTRO", out var dialogue)` to read a custom key. Pass `fallbackOnly: true` to read only the empty-string language. HAT's own menu keys are `HatMods`, `HatChooseWorld`, and `HatNoMods`, which mods can translate or override.
 
+Code mods can register dynamic text through `TextResourceManager`, including mods without text assets:
+
+```csharp
+var text = HatModLoader.Source.Hat.Instance.TextResources;
+text.Set("MY_MOD_MESSAGE", $"{player} sent you {item}");
+DotService.Say("MY_MOD_MESSAGE", true, true);
+
+// MY_MOD_MESSAGE_FORMAT is a localized ModText resource containing
+// a template such as "{0} sent you {1}".
+text.SetFormatted("MY_MOD_MESSAGE", "MY_MOD_MESSAGE_FORMAT", player, item);
+```
+
+Runtime entries take precedence over asset resources; setting the same runtime key again replaces its value. `SetFormatted` resolves its template from merged ModText and HAT resources at lookup time, so language changes and asset reloads apply to existing entries. Raw lookups use the fallback-language template. Templates refer to resource keys, not other runtime entries; a missing template resumes normal lookup of the message key. Arguments use .NET composite formatting, and invalid templates throw `FormatException` during lookup.
+
+Runtime definitions persist for the lifetime of the text manager and survive asset reloads. Update a dynamic string by setting the same key again. Use a mod-specific prefix to avoid collisions, and use distinct keys for messages that may be displayed at the same time.
+
+The legacy `@` literal-text syntax is unsupported. Looking up a tag starting with `@` throws `NotSupportedException`; register the text with `Set` or `SetFormatted` and pass its key instead. Registered text values can still contain `@`.
+
 ## Creating custom logic mod
 
 HAT 3 code mods target .NET 10. Code mods built for earlier HAT versions must be rebuilt against the assemblies from a HAT 3 installation and declare the HAT `3.0` dependency in their metadata.

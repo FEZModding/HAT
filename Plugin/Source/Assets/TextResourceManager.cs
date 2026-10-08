@@ -10,13 +10,53 @@ namespace HatModLoader.Source.Assets
 
         private readonly Dictionary<string, Dictionary<string, string>> _hatResources;
 
+        private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
+
         public TextResourceManager(Hat hat)
         {
             _hat = hat;
             _hatResources = GetHatResources();
         }
 
+        public void Set(string tag, string text)
+        {
+            _entries[tag] = new Entry(text, null, null);
+        }
+
+        public void SetFormatted(string tag, string templateTag, params object[] arguments)
+        {
+            _entries[tag] = new Entry(null, templateTag, (object[])arguments.Clone());
+        }
+
         public bool TryGetString(string tag, out string text, bool fallbackOnly = false)
+        {
+            if (tag != null && tag.StartsWith('@'))
+            {
+                throw new NotSupportedException(
+                    "The legacy '@' literal text syntax is no longer supported. " +
+                    "Register dynamic text with Hat.Instance.TextResources.Set(key, text) " +
+                    "or SetFormatted(key, templateKey, arguments), then pass the key to the text lookup.");
+            }
+
+            if (tag != null && _entries.TryGetValue(tag, out var entry))
+            {
+                if (entry.TemplateTag == null)
+                {
+                    text = entry.Text;
+                    return true;
+                }
+
+                if (TryGetResourceString(entry.TemplateTag, out var template, fallbackOnly))
+                {
+                    text = string.Format(template, entry.Arguments);
+                    return true;
+                }
+            }
+
+            return TryGetResourceString(tag, out text, fallbackOnly);
+        }
+
+        private bool TryGetResourceString(string tag, out string text, bool fallbackOnly)
         {
             if (tag != null && !fallbackOnly && TryGetLanguageString(Culture.TwoLetterISOLanguageName, tag, out text))
             {
@@ -82,5 +122,7 @@ namespace HatModLoader.Source.Assets
 
             return resources;
         }
+
+        private readonly record struct Entry(string Text, string TemplateTag, object[] Arguments);
     }
 }
