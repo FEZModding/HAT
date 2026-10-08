@@ -68,7 +68,8 @@ namespace HatModLoader.Source.ModDefinition
             // Code mods must declare current HAT version or newer
             if (hasCode && (hatDependency.MinimumVersion == null || hatDependency.MinimumVersion < MinimumCodeModHatVersion))
             {
-                details = $"Code mod must declare a HAT minimum version of {MinimumCodeModHatVersion} or newer";
+                details = $"Code mod must declare a HAT minimum version of {MinimumCodeModHatVersion} or newer," +
+                          $"found {hatDependency.MinimumVersion?.ToString() ?? "null"}";
                 return ModDependencyStatus.InvalidVersion;
             }
 
