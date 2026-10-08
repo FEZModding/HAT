@@ -18,6 +18,12 @@ namespace HatModLoader.Source.Assets
 
         public bool TryGetString(string tag, out string text, bool fallbackOnly = false)
         {
+            if (tag != null && tag.StartsWith('@'))
+            {
+                text = tag[1..];
+                return true;
+            }
+
             if (tag != null && !fallbackOnly && TryGetLanguageString(Culture.TwoLetterISOLanguageName, tag, out text))
             {
                 return true;
