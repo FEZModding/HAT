@@ -7,6 +7,7 @@ on:
 
 jobs:
   build-plugin:
+    if: github.repository == 'FEZModding/HAT'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -31,6 +32,7 @@ jobs:
           if-no-files-found: error
 
   build-installer:
+    if: github.repository == 'FEZModding/HAT'
     needs: [ build-plugin ]
     strategy:
       matrix:
