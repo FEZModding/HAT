@@ -1,5 +1,4 @@
-﻿using FezEngine.Tools;
-using HatModLoader.Source.Assets;
+﻿using HatModLoader.Source.Assets;
 using HatModLoader.Source.FileProxies;
 using Microsoft.Xna.Framework;
 
@@ -17,8 +16,6 @@ public class ModContainer : IDisposable
 
     public CodeMod CodeMod { get; internal set; }
 
-    private ModAssemblyLoadContext _loadContext;
-
     public ModContainer(IFileProxy fileProxy, Metadata metadata)
     {
         FileProxy = fileProxy;
@@ -27,19 +24,12 @@ public class ModContainer : IDisposable
 
     public void Initialize(Game game)
     {
-        if (CodeMod != null)
-        {
-            _loadContext = new ModAssemblyLoadContext(this);
-            CodeMod.Initialize(game, Metadata.Entrypoint, _loadContext);
-        }
+        CodeMod?.Initialize(game, FileProxy, Metadata);
     }
 
     public void InjectComponents()
     {
-        foreach (var component in CodeMod?.Components ?? new List<GameComponent>())
-        {
-            ServiceHelper.AddComponent(component);
-        }
+        CodeMod?.InjectComponents();
     }
 
     public IEnumerable<Asset> GetAssets()
@@ -84,11 +74,7 @@ public class ModContainer : IDisposable
 
     public void Dispose()
     {
-        foreach (var component in CodeMod?.Components ?? new List<GameComponent>())
-        {
-            ServiceHelper.RemoveComponent(component);
-        }
-
-        _loadContext?.Unload();
+        CodeMod?.Dispose();
+        FileProxy.Dispose();
     }
 }

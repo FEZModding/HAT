@@ -1,64 +1,90 @@
 ﻿using System.Reflection;
 using Common;
+using FezEngine.Tools;
 using HatModLoader.Source.FileProxies;
 using Microsoft.Xna.Framework;
 
 namespace HatModLoader.Source.ModDefinition
 {
-    public class CodeMod
+    public class CodeMod : IDisposable
     {
-        public string LibraryName { get; }
-
         public Assembly Assembly { get; private set; }
 
-        public List<GameComponent> Components { get; } = new();
+        private readonly List<GameComponent> _components = new();
 
-        private CodeMod(string libraryName)
-        {
-            LibraryName = libraryName;
-        }
+        private ModAssemblyLoadContext _loadContext;
 
-        internal void Initialize(Game game, string entrypoint, ModAssemblyLoadContext context)
+        internal void Initialize(Game game, IFileProxy proxy, Metadata metadata)
         {
-            if (Assembly != null)
+            if (_loadContext != null)
             {
                 throw new InvalidOperationException("Assembly is already loaded.");
             }
             
-            Assembly = context.LoadEntryAssembly();
-            Components.Clear();
+            _loadContext = new ModAssemblyLoadContext(proxy, metadata);
+            try
+            {
+                Assembly = _loadContext.LoadEntryAssembly();
+                _components.Clear();
 
-            Type[] types;
-            if (!string.IsNullOrEmpty(entrypoint))
-            {
-                if (!Assembly.GetTypes().Any(t => t.FullName?.Equals(entrypoint) ?? false))
+                Type[] types;
+                if (!string.IsNullOrEmpty(metadata.Entrypoint))
                 {
-                    throw new ArgumentException($"The entrypoint name is not a fully qualified name: {entrypoint}");
-                }
+                    if (!Assembly.GetTypes().Any(t => t.FullName?.Equals(metadata.Entrypoint) ?? false))
+                    {
+                        throw new ArgumentException($"The entrypoint name is not a fully qualified name: {metadata.Entrypoint}");
+                    }
                 
-                // Entrypoint class may load other components (services) via Game.Components (Game.Services)
-                Logger.Log("HAT", LogSeverity.Information, 
-                    $"Starting at entrypoint component {entrypoint} in assembly {Assembly.GetName().Name}.");
-                types = new [] { Assembly.GetType(entrypoint) };
-            }
-            else
-            {
-                // Use backward compatible method
-                Logger.Log("HAT", LogSeverity.Warning, 
-                    $"No entrypoint was specified for assembly {Assembly.GetName().Name}. " +
-                    "Loading all public components instead.");
-                types = Assembly.GetExportedTypes();
-            }
-            
-            foreach (var type in types)
-            {
-                if (typeof(GameComponent).IsAssignableFrom(type) && type.IsPublic && !type.IsAbstract)
+                    // Entrypoint class may load other components (services) via Game.Components (Game.Services)
+                    Logger.Log("HAT", LogSeverity.Information, 
+                        $"Starting at entrypoint component {metadata.Entrypoint} in assembly {Assembly.GetName().Name}.");
+                    types = new [] { Assembly.GetType(metadata.Entrypoint) };
+                }
+                else
                 {
-                    // The constructor accepting the type (Game) is defined in GameComponent
-                    var gameComponent = (GameComponent)Activator.CreateInstance(type, game);
-                    Components.Add(gameComponent);
+                    // Use backward compatible method
+                    Logger.Log("HAT", LogSeverity.Warning, 
+                        $"No entrypoint was specified for assembly {Assembly.GetName().Name}. " +
+                        "Loading all public components instead.");
+                    types = Assembly.GetExportedTypes();
+                }
+            
+                foreach (var type in types)
+                {
+                    if (typeof(GameComponent).IsAssignableFrom(type) && type.IsPublic && !type.IsAbstract)
+                    {
+                        // The constructor accepting the type (Game) is defined in GameComponent
+                        var gameComponent = (GameComponent)Activator.CreateInstance(type, game);
+                        _components.Add(gameComponent);
+                    }
                 }
             }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        internal void InjectComponents()
+        {
+            foreach (var component in _components)
+            {
+                ServiceHelper.AddComponent(component);
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (var component in _components)
+            {
+                ServiceHelper.RemoveComponent(component);
+            }
+
+            _components.Clear();
+            Assembly = null;
+            _loadContext?.Unload();
+            _loadContext = null;
         }
 
         public static bool HasLibrary(IFileProxy proxy, Metadata metadata)
@@ -76,7 +102,7 @@ namespace HatModLoader.Source.ModDefinition
                 return false;
             }
 
-            codeMod = new CodeMod(metadata.LibraryName);
+            codeMod = new CodeMod();
             return true;
         }
     }

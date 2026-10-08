@@ -1,11 +1,12 @@
 using System.Reflection;
 using System.Runtime.Loader;
+using HatModLoader.Source.FileProxies;
 
 namespace HatModLoader.Source.ModDefinition;
 
 internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
 {
-    private readonly ModContainer _mod;
+    private readonly Metadata _metadata;
 
     private readonly string _entryPath;
 
@@ -13,15 +14,13 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
 
     private readonly Dictionary<string, string> _legacyAssemblies = new(StringComparer.OrdinalIgnoreCase);
 
-    public ModAssemblyLoadContext(ModContainer mod) : base($"HAT mod: {mod.Metadata.Name}", true)
+    public ModAssemblyLoadContext(IFileProxy proxy, Metadata metadata) : base($"HAT mod: {metadata.Name}", true)
     {
-        _mod = mod;
-        var root = mod.FileProxy.CodeRootPath;
-
-        _entryPath = EntryPath(root, mod.Metadata.LibraryName);
+        _metadata = metadata;
+        _entryPath = EntryPath(proxy.CodeRootPath, metadata.LibraryName);
         if (!File.Exists(_entryPath))
         {
-            throw new FileNotFoundException($"Mod '{mod.Metadata.Name}' entry assembly is missing", _entryPath);
+            throw new FileNotFoundException($"Mod '{metadata.Name}' entry assembly is missing", _entryPath);
         }
 
         if (File.Exists(Path.ChangeExtension(_entryPath, ".deps.json")))
@@ -30,7 +29,7 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
             return;
         }
 
-        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(proxy.CodeRootPath, "*", SearchOption.AllDirectories))
         {
             if (file.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
                 file.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
@@ -55,16 +54,17 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
     protected override Assembly Load(AssemblyName assemblyName)
     {
         // Mod-to-mod references are permitted only by Metadata.xml, and retain the provider's type identity.
-        foreach (var dependency in _mod.Metadata.Dependencies ?? Array.Empty<Metadata.DependencyInfo>())
+        foreach (var dependency in _metadata.Dependencies ?? Array.Empty<Metadata.DependencyInfo>())
         {
             var provider = Hat.Instance?.Mods
                 .FirstOrDefault(mc =>
                     string.Equals(mc.Metadata.Name, dependency.Name, StringComparison.OrdinalIgnoreCase));
 
-            var providerName = provider?.CodeMod.Assembly.GetName().Name ?? "";
-            if (provider != null && string.Equals(providerName, assemblyName.Name!, StringComparison.OrdinalIgnoreCase))
+            var providerAssembly = provider?.CodeMod?.Assembly;
+            if (providerAssembly != null &&
+                string.Equals(providerAssembly.GetName().Name, assemblyName.Name!, StringComparison.OrdinalIgnoreCase))
             {
-                return provider.CodeMod.Assembly;
+                return providerAssembly;
             }
         }
 
@@ -81,7 +81,7 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
 
         if (!File.Exists(path))
         {
-            throw new FileNotFoundException($"Mod '{_mod.Metadata.Name}' declares a missing assembly", path);
+            throw new FileNotFoundException($"Mod '{_metadata.Name}' declares a missing assembly", path);
         }
 
         return LoadFromAssemblyPath(path);
@@ -97,7 +97,7 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
 
         if (!File.Exists(path))
         {
-            throw new DllNotFoundException($"Mod '{_mod.Metadata.Name}' declares a missing native library: {path}");
+            throw new DllNotFoundException($"Mod '{_metadata.Name}' declares a missing native library: {path}");
         }
 
         return LoadUnmanagedDllFromPath(path);
