@@ -11,9 +11,11 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <!-- Expose GitInfo's generated ThisAssembly source to Rider after builds. -->
+    <!-- Expose GitInfo's generated ThisAssembly source to IDE -->
     <UseTemplatedCode>true</UseTemplatedCode>
   </PropertyGroup>
+
+  <Import Project="..\HAT.Version.props" />
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <SelfContained>true</SelfContained>

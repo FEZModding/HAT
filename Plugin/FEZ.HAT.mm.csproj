@@ -16,6 +16,8 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
+  <Import Project="..\HAT.Version.props" />
+
   <ItemGroup>
     <EmbeddedResource Include="Resources\**\*.*" LogicalName="%(Filename)%(Extension)"/>
   </ItemGroup>

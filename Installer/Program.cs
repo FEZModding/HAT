@@ -73,12 +73,8 @@ public static class Program
         Console.WriteLine(logo.ReadToEnd());
 
         const int logoWidth = 50;
-        const string version = $"{ThisAssembly.Git.BaseVersion.Major}." +
-                               $"{ThisAssembly.Git.BaseVersion.Minor}." +
-                               $"{ThisAssembly.Git.BaseVersion.Patch}";
-
-        const string commit = ThisAssembly.Git.Branch +
-                              "-" + ThisAssembly.Git.Commit;
+        const string version = ThisAssembly.Constants.HatVersion;
+        const string commit = ThisAssembly.Git.Branch + "-" + ThisAssembly.Git.Commit;
 
         Console.WriteLine($"HAT Installer v{version} ({commit})".PadLeft(logoWidth));
         Console.WriteLine("Created by zerocker and FEZModding community".PadLeft(logoWidth));

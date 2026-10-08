@@ -31,11 +31,9 @@ namespace HatModLoader.Source
 
         public int InvalidModsCount { get; private set; }
 
-        public const string Version = ThisAssembly.Git.BaseVersion.Major + "." +
-                                      ThisAssembly.Git.BaseVersion.Minor + "." +
-                                      ThisAssembly.Git.BaseVersion.Patch;
+        public const string Version = ThisAssembly.Constants.HatVersion;
 
-        public const string CommitHash = ThisAssembly.Git.Branch + "-" + ThisAssembly.Git.Commit;
+        private const string CommitHash = ThisAssembly.Git.Branch + "-" + ThisAssembly.Git.Commit;
 
 #if DEBUG
         public const string Suffix = $"-dev ({CommitHash})";
