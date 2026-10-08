@@ -551,7 +551,7 @@ public static class Program
 
         foreach (var assemblyPath in gameAssembliesToPatch)
         {
-            var outputPath = Path.Combine(gameDir, "MMHOOK_" + Path.GetFileName(assemblyPath));
+            var outputPath = Path.Combine(gameDir, Path.GetFileNameWithoutExtension(assemblyPath) + ".Hooks.dll");
             using var modder = new MonoModder
             {
                 InputPath = assemblyPath,
@@ -824,10 +824,7 @@ public static class Program
         {
             "FEZ.dll",
             "FEZ.HAT.mm.dll",
-            "FEZ.HAT.mm.pdb",
-            "MMHOOK_FEZ.dll",
-            "MMHOOK_FezEngine.dll",
-            "MMHOOK_FNA.dll"
+            "FEZ.HAT.mm.pdb"
         };
 
         foreach (var file in intermediates)

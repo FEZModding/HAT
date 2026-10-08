@@ -73,6 +73,11 @@ public sealed class Deps
         var pending = new Stack<ManagedAssembly>();
 
         AddAssembly(entryAssemblyPath);
+        foreach (var path in Directory.EnumerateFiles(gameDir, "*.Hooks.dll", SearchOption.TopDirectoryOnly))
+        {
+            AddAssembly(path);
+        }
+
         foreach (var directory in dependencyDirectories)
         {
             if (!Directory.Exists(directory))
