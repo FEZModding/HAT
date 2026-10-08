@@ -2,6 +2,8 @@
 
 ## Basic mod architecture
 
+Start with [HatModTemplate](https://github.com/FEZModding/HatModTemplate) for a code mod, an asset mod, or a mod containing both. It provides metadata, a sample component, game references, and packaging targets for HAT 3.
+
 Start by creating a mod's directory within `FEZ/Mods` directory. You can name it whatever you'd like, as the mod loader doesn't actually use it for mod identification, but it would be nice if it at least contained the actual mod's name to avoid confusion.
 
 Mod loader expects `Metadata.xml` file in the mod's directory. Create one in a directory you've just made. Its content should look roughly like this:
@@ -12,35 +14,47 @@ Mod loader expects `Metadata.xml` file in the mod's directory. Create one in a d
    <Description>Short description of your mod.</Description>
    <Author>YourName</Author>
    <Version>1.0</Version>
-   <LibraryName></LibraryName>
+   <LibraryName>YourModName.dll</LibraryName>
+   <Entrypoint>YourModName.ModComponent</Entrypoint>
    <Dependencies>
-      <DependencyInfo Name="HAT" MinimumVersion="1.0"/>
+      <DependencyInfo Name="HAT" MinimumVersion="3.0"/>
    </Dependencies>
 </Metadata>
 ```
 
-`Name` tag is required and is treated as an unique case-sensitive identifier of your mod - mod loader will load only one mod with the same name (it'll choose the one with the most recent version).
+`Name` is required and identifies your mod without regard to letter case. If multiple mods have the same name, HAT chooses the one with the highest version.
 
-`Version` tag is also required. Mod loader compares two version strings by putting them in an alphanumberical order, however, each number is treated as a separate token, which order is determined by numberical value (this means `1.2beta` will be treated as older version to `1.11`).
+`Version` is also required. HAT uses .NET's `System.Version`, which accepts two to four numeric components, such as `1.0` or `1.2.3`. Prerelease suffixes such as `beta` are not supported. Omitted components affect comparison: `1.0` sorts below `1.0.0`.
 
 `LibraryName` is used to determine a DLL library with C# assembly the mod loader will load. The library should end with `.dll` extension and should be placed in your mod's directory. This tag is optional, as your mod doesn't have to add any new logic.
 
-`Dependencies` is a list of `DependencyInfo` tags. If your mod requires a specific version of HAT mod loader or relies on another mod, your can use these tags to prevent mod loader from loading this mod if given dependencies aren't present. It's entirely optional.
+`Entrypoint` names the fully qualified component class HAT should create. It must be public, non-abstract, derived from `GameComponent`, and have a public constructor accepting `Game`. If omitted, HAT creates every public, non-abstract `GameComponent` in the assembly.
+
+`Dependencies` lists the mods and minimum versions your mod requires. Code mods must declare a HAT dependency with `MinimumVersion="3.0"` or newer; the installed HAT version must satisfy that requirement. Asset mods may omit the HAT dependency entirely. Declared dependencies are checked and loaded before your mod.
+
+For an asset mod without code, omit `LibraryName` and `Entrypoint` from the metadata.
 
 All other fields are purely informational.
 
 ## Creating asset mod
 
-If you want to add new assets or override existing ones, create `Assets` directory within your mods directory. All valid files within it will be loaded as game assets with path relative to the `Assets` directory. Currently, the only supported format is `.xnb`, but in the future, a conversion from popular file formats will be implemented, allowing much easier modding process (for isntance, PNG files will be automatically converted to Texture2D assets). As of right now, there isn't really a good way of creating `.xnb` assets and you have to rely on [FEZRepacker](https://github.com/Krzyhau/FEZRepacker).
+To add assets or override existing ones, create an `Assets` directory within your mod's directory and preserve the game asset paths beneath it. HAT accepts `.xnb` files and uses [FEZRepacker](https://github.com/Krzyhau/FEZRepacker) to convert supported source formats, such as PNG textures, when loading the mod. You can also place an `Assets.pak` file beside `Metadata.xml`.
+
+The template copies `Assets/` and `Assets.pak` when building a code mod. For an asset mod without code, add your assets and run:
+
+```sh
+dotnet msbuild -t:PackageAssetsOnly
+```
+
+This produces `out-assets/` with metadata and assets, clearing the code-only `LibraryName` and `Entrypoint` fields. It requires the .NET 10 SDK, but no game references or C# compilation.
 
 As an example, here's an instruction on how to change Gomez's house background plane.
 
 1. Use FEZRepacker to unpack game's `Other.pak` archive.
 2. Find `background planes/gomez_house_a.png` file and copy it.
 3. Edit the image however you'd like.
-4. Use FEZRepacker to convert the image into an XNB.
-7. In your mod's `Assets` directory, create `background planes` directory and put your XNB file there.
-8. From now on Gomez's house should have your modified texture.
+4. Put the edited PNG at `[Your mod]/Assets/background planes/gomez_house_a.png`.
+5. Start FEZ. HAT converts the PNG and replaces the background plane texture.
 
 A small note regarding music files: since they're normally stored in a separate `.pak` archive (`Music.pak`) and handled by a separate subsystem, music files are organized in a root directory. It is **not** the case for HAT mods, and instead it looks for OGG files (audio format used by music in this game) in `[Your mod]/Assets/Music` directory, then uses a path relative to this directory to identify the music file. For example, in order to replace `villageville\bed` music file, your new music file needs to be located at `[Your mod]/Assets/Music/villageville/bed.ogg`.
 
@@ -54,14 +68,31 @@ Code mods can call `HatModLoader.Source.Hat.Instance.TextResources.TryGetString(
 
 ## Creating custom logic mod
 
-Mod loader loads library file given in metadata as an assembly, then attempts to create instances of every non-abstract public class extending the `GameComponent` class before initialization (before any services are created). After the game has been initialized (that is, as soon as all necessary services are initiated), it adds created instances into the list of game's components and initializes them, allowing their `Update` and `Draw` (use `DrawableGameComponent`) to be properly executed within the game's loop.
+HAT 3 code mods target .NET 10. Code mods built for earlier HAT versions must be rebuilt against the assemblies from a HAT 3 installation and declare the HAT `3.0` dependency in their metadata.
 
-In order to create a HAT-compatible library, start by creating an empty C# library project. Then, add `FEZ.exe`, `FezEngine.dll` and all other needed game's dependencies as references - make sure to set "Copy Local" to "False" on all of those references, otherwise you will ship your mod with copies of those files.
+Use [HatModTemplate](https://github.com/FEZModding/HatModTemplate):
 
-Once you have your project done, create a public class inheriting from either `GameComponent` or `DrawableGameComponent` and add your logic there. Once that's done, build it and put it in the mod's directory.
+1. Install HAT 3 into FEZ and install the .NET 10 SDK.
+2. Create a repository from the template. Rename `HatModTemplate.csproj`, the namespace in `ModComponent.cs`, and the matching `Name`, `LibraryName`, and `Entrypoint` values in `Metadata.xml`.
+3. Copy `UserProperties.xml.template` to `UserProperties.xml`. Set `FezDir` to the installed game's directory containing `HAT.dll`, `FezEngine.dll`, and `FNA.dll`. The local configuration file is ignored by Git.
+4. Add your logic to `ModComponent`, which derives from `GameComponent`. Use `DrawableGameComponent` when your component needs to draw.
+5. Build or publish from the repository root:
+
+```sh
+dotnet build -c Debug
+dotnet publish -c Release -p:ContinuousIntegrationBuild=true
+```
+
+Both commands copy the mod DLL, its `.deps.json`, metadata, and assets to `ModOutputDir` configured in `UserProperties.xml`, or `out/` if unset. Copy that folder's contents to a directory under `FEZ/Mods`, or configure `ModOutputDir` to build there directly. Restart FEZ to load code changes.
+
+The template references the installed game's `HAT.dll`, `FezEngine.dll`, `FNA.dll`, and other game dependencies with `<Private>false</Private>`. Use those same installed assemblies when adding references so your mod matches the game's assembly versions, including FNA.
+
+HAT creates the entrypoint component before the game's services are initialized, then injects it during component loading. Access services during component initialization or updates rather than in the constructor. To add more components, create them through `ServiceHelper.AddComponent`, or omit `Entrypoint` to let HAT discover all public components.
 
 For help, you can see an example of already functioning custom logic mod: [FEZUG](https://github.com/Krzyhau/FEZUG).
 
 ## Distributing your mod
 
-Mod loader is capable of loading ZIP archives the same way directories are loaded. Simply pack all contents of your mod's directory into a ZIP file. In order for other people to use it, they simply need to put the archive in the `FEZ/Mods` directory and it should work right off the bat.
+HAT loads ZIP archives as well as directories. Pack the contents of your output folder with `Metadata.xml` at the ZIP root. Users can put the archive directly in `FEZ/Mods`.
+
+For code mods, include the mod DLL, its `.deps.json`, required third-party DLLs, and any native libraries in their expected `runtimes/` paths, along with metadata and assets. Keep game and HAT assemblies out of the package. Clear stale output files before packaging an updated mod; the template's copy targets do not remove deleted files.
