@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using HatModLoader.Source.FileProxies;
+using Microsoft.Xna.Framework;
 
 namespace HatModLoader.Source.ModDefinition;
 
@@ -53,7 +54,15 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
 
     protected override Assembly Load(AssemblyName assemblyName)
     {
-        // Mod-to-mod references are permitted only by Metadata.xml, and retain the provider's type identity.
+        // FEZ ships different FNA versions across operating systems (16.11 and 16.12, to be exact), so mods
+        // may reference a different version. Resolve those references to the game's FNA so mod components
+        // share its framework types.
+        if (string.Equals(assemblyName.Name, "FNA", StringComparison.OrdinalIgnoreCase))
+        {
+            return typeof(Game).Assembly;
+        }
+
+        // Mod-to-mod references are permitted only by Metadata.xml, and retain the provider's type identity
         foreach (var dependency in _metadata.Dependencies ?? Array.Empty<Metadata.DependencyInfo>())
         {
             var provider = Hat.Instance?.Mods
