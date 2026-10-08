@@ -6,7 +6,7 @@ namespace HatModLoader.Source.ModDefinition
     {
         private const string HatDependencyName = "HAT";
 
-        private static readonly Version MinimumCodeModHatVersion = new("3.0.0");
+        private static readonly Version MinimumCodeModHatVersion = new("3.0");
 
         public static ResolverResult Resolve(IList<ModContainer> mods, IList<string> priorityList)
         {
@@ -48,34 +48,28 @@ namespace HatModLoader.Source.ModDefinition
 
         private static ModDependencyStatus ValidateHatDependency(ModContainer mod, out string details)
         {
-            var deps = mod.Metadata.Dependencies;
-            if (deps == null || deps.Length == 0)
+            var hasCode = CodeMod.HasLibrary(mod.FileProxy, mod.Metadata);
+            var hatDependency = (mod.Metadata.Dependencies ?? Array.Empty<Metadata.DependencyInfo>())
+                .FirstOrDefault(d => IsHatDependency(d.Name));
+
+            // Asset mods from HAT 1.0 era may omit HAT dependency entirely
+            if (string.IsNullOrEmpty(hatDependency.Name))
             {
-                // Preserve the HAT 1.0 default for legacy mods; code mods are checked below
-                deps = new[]
+                if (!hasCode)
                 {
-                    new Metadata.DependencyInfo
-                    {
-                        Name = HatDependencyName,
-                        MinimumVersionString = "1.0"
-                    }
-                };
+                    details = string.Empty;
+                    return ModDependencyStatus.Valid;
+                }
+
+                details = "HAT dependency not declared";
+                return ModDependencyStatus.InvalidNotFound;
             }
 
-            var hatDependency = deps.FirstOrDefault(d => IsHatDependency(d.Name));
-
-            // HAT 1/2 code mods target the old runtime and must be rebuilt for HAT 3
-            if (CodeMod.HasLibrary(mod.FileProxy, mod.Metadata) &&
-                (hatDependency.MinimumVersion == null || hatDependency.MinimumVersion < MinimumCodeModHatVersion))
+            // Code mods must declare current HAT version or newer
+            if (hasCode && (hatDependency.MinimumVersion == null || hatDependency.MinimumVersion < MinimumCodeModHatVersion))
             {
                 details = $"Code mod must declare a HAT minimum version of {MinimumCodeModHatVersion} or newer";
                 return ModDependencyStatus.InvalidVersion;
-            }
-
-            if (string.IsNullOrEmpty(hatDependency.Name))
-            {
-                details = "HAT dependency not declared";
-                return ModDependencyStatus.InvalidNotFound;
             }
 
             var hatVersion = new Version(Hat.Version);
