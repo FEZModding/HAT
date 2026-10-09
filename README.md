@@ -24,7 +24,7 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 > [!NOTE]
 > To try changes before the next stable release, download installers from the
-> continuous prerelease (../../releases/tag/continuous), built from the latest successful build on main.
+> [continuous prerelease](../../releases/tag/continuous), built from the latest successful build on `main`.
 
 ## Adding mods
 
