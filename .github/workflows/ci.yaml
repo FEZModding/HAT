@@ -16,6 +16,9 @@ on:
       - 'LICENSE'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-plugin:
     if: github.repository == 'FEZModding/HAT'
@@ -84,3 +87,58 @@ jobs:
           path: ${{ matrix.artifact }}
           archive: false
           if-no-files-found: error
+
+  continuous-release:
+    if: github.ref == 'refs/heads/main' && github.repository == 'FEZModding/HAT'
+    needs: [ build-installer ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: continuous-release
+      cancel-in-progress: false
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v8
+        with:
+          pattern: HATinstaller-*
+          merge-multiple: true
+
+      - name: Update rolling prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          files=(HATinstaller-win-x64.exe HATinstaller-linux-x64 HATinstaller-osx-x64)
+          for file in "${files[@]}"; do
+            if [[ ! -s "$file" ]]; then
+              echo "Missing or empty installer: $file" >&2
+              exit 1
+            fi
+          done
+
+          # Only the latest main commit may replace the rolling release.
+          main_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$SHA" != "$main_sha" ]]; then
+            echo "Skipping superseded commit: $SHA"
+            exit 0
+          fi
+
+          title="HAT Continuous Build"
+          built_at=$(date -u '+%Y-%m-%d %H:%M UTC')
+          notes=$(printf 'Published: %s\n' "$built_at")
+
+          if gh release view continuous >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/continuous" \
+              -f sha="$SHA" -F force=true
+            gh release edit continuous \
+              --title "$title" --notes "$notes" --prerelease --latest=false
+            gh release upload continuous "${files[@]}" --clobber
+          else
+            gh release create continuous "${files[@]}" \
+              --target "$SHA" --title "$title" --notes "$notes" \
+              --prerelease --latest=false
+          fi

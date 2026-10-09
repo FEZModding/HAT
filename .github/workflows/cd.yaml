@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-plugin:
-    if: github.repository == 'FEZModding/HAT'
+    if: github.repository == 'FEZModding/HAT' && github.ref_name != 'continuous'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -77,6 +77,8 @@ jobs:
     if: github.repository == 'FEZModding/HAT'
     needs: [ build-installer ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download installers
         uses: actions/download-artifact@v8

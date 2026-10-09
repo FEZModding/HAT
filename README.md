@@ -22,6 +22,10 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 
 3. Launch FEZ from Steam or GOG, or run `FEZ.exe` (Windows) or `./FEZ` (Linux/macOS) directly, and enjoy modding!
 
+> [!NOTE]
+> To try changes before the next stable release, download installers from the
+> continuous prerelease (../../releases/tag/continuous), built from the latest successful build on main.
+
 ## Adding mods
 
 1. On first HAT launch, `Mods` directory will be created in the executable's directory.
