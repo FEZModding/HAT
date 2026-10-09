@@ -71,7 +71,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Publish installer
-        run: dotnet publish Installer/FEZ.HAT.Installer.csproj -c Release -r ${{ matrix.rid }} -o artifacts/installer-publish
+        run: dotnet publish Installer/FEZ.HAT.Installer.csproj -c Debug -r ${{ matrix.rid }} -o artifacts/installer-publish
 
       - name: Rename artifact
         shell: bash
