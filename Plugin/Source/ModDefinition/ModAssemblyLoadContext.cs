@@ -62,7 +62,18 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
             return typeof(Game).Assembly;
         }
 
-        // Mod-to-mod references are permitted only by Metadata.xml, and retain the provider's type identity
+        return LoadModAssembly(assemblyName, new HashSet<ModAssemblyLoadContext>());
+    }
+
+    private Assembly LoadModAssembly(AssemblyName assemblyName, HashSet<ModAssemblyLoadContext> visited)
+    {
+        if (!visited.Add(this))
+        {
+            return null;
+        }
+
+        // Share entry assemblies and supporting libraries only through declared mod dependencies.
+        // Supporting libraries stay in the provider's context, preserving type identity and native resolution.
         foreach (var dependency in _metadata.Dependencies ?? Array.Empty<Metadata.DependencyInfo>())
         {
             var provider = Hat.Instance?.Mods
@@ -74,6 +85,15 @@ internal sealed class ModAssemblyLoadContext : AssemblyLoadContext
                 string.Equals(providerAssembly.GetName().Name, assemblyName.Name!, StringComparison.OrdinalIgnoreCase))
             {
                 return providerAssembly;
+            }
+
+            if (providerAssembly != null && GetLoadContext(providerAssembly) is ModAssemblyLoadContext providerContext)
+            {
+                var sharedAssembly = providerContext.LoadModAssembly(assemblyName, visited);
+                if (sharedAssembly != null)
+                {
+                    return sharedAssembly;
+                }
             }
         }
 
