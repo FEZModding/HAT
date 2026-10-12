@@ -103,6 +103,11 @@ public static class Program
 
     private static void ParseCommandLineArguments(string[] args)
     {
+        if (args.Length > 0 && !args[0].StartsWith('-'))
+        {
+            _userFezPath = Path.GetFullPath(args[0]);
+        }
+
         var queue = new Queue<string>(args);
         while (queue.Count > 0)
         {
@@ -121,7 +126,7 @@ public static class Program
     {
         var path = string.Empty;
         {
-            Console.WriteLine("[HAT] Checking CLI \"--path\" or \"-p\" argument");
+            Console.WriteLine("[HAT] Checking CLI path argument (positional, \"--path\" or \"-p\")");
             if (_userFezPath != null)
             {
                 path = _userFezPath;
@@ -247,8 +252,7 @@ public static class Program
         }
 
         executable = string.Empty;
-        throw new InstallerException(
-            "Could not find FEZ. Use --path <dir> or place the installer in the FEZ game directory.");
+        throw new InstallerException("Could not find FEZ. Pass <dir> or --path <dir>, or place the installer in the FEZ game directory.");
     }
 
     private static bool HasFezExecutable(string directory)

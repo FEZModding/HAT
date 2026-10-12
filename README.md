@@ -18,7 +18,7 @@ When patched into the FEZ instance, it can be used to dynamically load game modi
 | Linux    | `HATinstaller-linux-x64` |
 | macOS    | `HATinstaller-osx-x64` |
 
-2. Run the installer. FEZ will be detected automatically from your Steam or GOG library. If detection fails, drop the installer into your FEZ game folder and run it from there, or use `--path <dir>`.
+2. Run the installer. FEZ will be detected automatically from your Steam or GOG library. If detection fails, drop the installer into your FEZ game folder and run it from there, or pass the directory directly: `HATinstaller.exe "C:\Games\FEZ"`. The `--path <dir>` and `-p <dir>` options also work. Quote paths containing spaces.
 
 3. Launch FEZ from Steam or GOG, or run `FEZ.exe` (Windows) or `./FEZ` (Linux/macOS) directly, and enjoy modding!
 
